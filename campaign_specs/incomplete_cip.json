@@ -1,0 +1,36 @@
+{
+  "campaign_id": "production-incomplete-cip-restart",
+  "description": "Matched campaign with reduced cleaning effectiveness during the CIP phase.",
+  "config": {
+    "dt_s": 0.5,
+    "duration_s": 1020.0,
+    "random_seed": 20260725,
+    "fault_start_s": 300.0,
+    "fault_duration_s": 120.0,
+    "fault_severity": 1.0,
+    "initial_fouling_index": 0.65
+  },
+  "phases": [
+    {
+      "phase_id": "production",
+      "scenario": "normal",
+      "duration_s": 120.0
+    },
+    {
+      "phase_id": "cip",
+      "scenario": "incomplete_cleaning",
+      "duration_s": 600.0
+    },
+    {
+      "phase_id": "restart",
+      "scenario": "normal",
+      "duration_s": 300.0
+    }
+  ],
+  "transition_policy": {
+    "state": "carry",
+    "balance_tank": "isolate_during_cip",
+    "fdv": "command_divert_without_position_jump",
+    "pi_integral": "reset_at_phase_boundary"
+  }
+}

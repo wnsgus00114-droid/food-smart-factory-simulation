@@ -1,0 +1,38 @@
+{
+  "digital_twin_version": "3.0.0",
+  "config_schema_version": "1.0.0",
+  "run_id": "HTST-DT-V3-REFERENCE",
+  "model_status": "unvalidated_public_reference_research_surrogate",
+  "seed": 20260725,
+  "process": {
+    "dt_s": 1.0,
+    "initial_fouling_index": 0.65,
+    "process_cycles": 1,
+    "production_duration_s": 120.0,
+    "cip_duration_s": 600.0,
+    "restart_duration_s": 240.0,
+    "cip_pattern": [
+      "complete"
+    ]
+  },
+  "plc": {
+    "scan_time_s": 1.0,
+    "forward_confirmation_s": 1.0,
+    "shadow_only": true
+  },
+  "calibration": {
+    "evaluation_date": "2026-07-25",
+    "guard_band_enabled": true,
+    "coverage_factor": 2.0
+  },
+  "haccp": {
+    "plan_id": "HTST-HACCP-REFERENCE-001",
+    "lot_id": "SYNTHETIC-LOT-001",
+    "jurisdiction_status": "not_assessed",
+    "automatic_release": false
+  },
+  "lifecycle": {
+    "policy_file": "maintenance_policy.json",
+    "cycles": 36
+  }
+}

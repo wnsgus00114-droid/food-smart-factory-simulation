@@ -1,0 +1,331 @@
+{
+  "schema_version": "1.0.0",
+  "catalog_status": "synthetic_reference",
+  "claim_boundary": "These records exercise calibration and uncertainty software only. They are not calibration certificates, do not establish metrological traceability, and do not demonstrate fitness for use at a real plant.",
+  "sources": [
+    {
+      "id": "NIST_TN_1297",
+      "title": "Guidelines for Evaluating and Expressing the Uncertainty of NIST Measurement Results",
+      "url": "https://www.nist.gov/pml/nist-technical-note-1297",
+      "status": "synthetic_reference",
+      "use": "Method reference for combined and expanded measurement uncertainty; no NIST traceability is claimed."
+    },
+    {
+      "id": "NIST_TRACEABILITY_POLICY",
+      "title": "NIST Policy on Metrological Traceability",
+      "url": "https://www.nist.gov/calibrations/traceability",
+      "status": "synthetic_reference",
+      "use": "Claim boundary: traceability requires a documented unbroken calibration chain and is not conferred by this simulation."
+    },
+    {
+      "id": "FDA_2025_PMO",
+      "title": "2025 Grade A Pasteurized Milk Ordinance",
+      "url": "https://www.fda.gov/media/193438/download",
+      "status": "synthetic_reference",
+      "use": "Foreign regulatory reference for HTST temperature, pressure-differential, and periodic equipment-test examples; not a Korean conformity determination."
+    },
+    {
+      "id": "SYNTHETIC_CHAIN_V1",
+      "title": "HTST v3 synthetic sensor-chain assumptions",
+      "url": "https://www.nist.gov/pml/nist-technical-note-1297",
+      "status": "synthetic_reference",
+      "use": "Engineering assumptions selected to exercise lag, bias, drift, hysteresis, noise, quantization, and dropout paths."
+    }
+  ],
+  "sensors": [
+    {
+      "tag": "TT-104",
+      "status": "synthetic_reference",
+      "measurand": "holding_tube_outlet_temperature",
+      "unit": "degC",
+      "engineering_range": {
+        "minimum": 0.0,
+        "maximum": 120.0
+      },
+      "chain": {
+        "lag_tau_s": 1.2,
+        "gain": 1.001,
+        "offset": 0.08,
+        "drift_per_hour": 0.002,
+        "hysteresis": 0.03,
+        "noise_std": 0.015,
+        "quantization": 0.01,
+        "dropout_probability": 0.001,
+        "hold_last": true
+      },
+      "calibration": {
+        "interval_days": 90.0,
+        "coverage_factor": 2.0,
+        "uncertainty_components": {
+          "reference_standard": 0.05,
+          "repeatability": 0.03,
+          "resolution": 0.002886751345948129
+        }
+      },
+      "guard_band": {
+        "direction": "lower",
+        "critical_limit": 72.0
+      },
+      "parameter_provenance": {
+        "engineering_range.minimum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic operating range."},
+        "engineering_range.maximum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic operating range."},
+        "chain.lag_tau_s": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic first-order time constant."},
+        "chain.gain": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic pre-calibration gain."},
+        "chain.offset": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic offset in sensor units."},
+        "chain.drift_per_hour": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic linear drift."},
+        "chain.hysteresis": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic signed hysteresis."},
+        "chain.noise_std": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic Gaussian noise standard deviation."},
+        "chain.quantization": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic display increment."},
+        "chain.dropout_probability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic independent per-step dropout probability."},
+        "calibration.interval_days": {"status": "synthetic_reference", "source_type": "foreign_regulatory_reference", "source_id": "FDA_2025_PMO", "note": "Quarterly PMO equipment testing is used only as a simulation cadence; it is not a device-specific calibration interval."},
+        "calibration.coverage_factor": {"status": "synthetic_reference", "source_type": "metrology_method", "source_id": "NIST_TN_1297", "note": "Synthetic expanded-uncertainty coverage factor."},
+        "calibration.uncertainty_components.reference_standard": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Not taken from a calibration certificate."},
+        "calibration.uncertainty_components.repeatability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic standard uncertainty."},
+        "calibration.uncertainty_components.resolution": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "0.01/sqrt(12), assuming rectangular quantization error."},
+        "guard_band.critical_limit": {"status": "synthetic_reference", "source_type": "foreign_regulatory_reference", "source_id": "FDA_2025_PMO", "note": "US PMO 72 degC reference; Korean conformity has not been evaluated."}
+      }
+    },
+    {
+      "tag": "FT-101",
+      "status": "synthetic_reference",
+      "measurand": "pasteurizer_flow_rate",
+      "unit": "L/h",
+      "engineering_range": {
+        "minimum": 0.0,
+        "maximum": 30000.0
+      },
+      "chain": {
+        "lag_tau_s": 0.6,
+        "gain": 0.998,
+        "offset": 4.0,
+        "drift_per_hour": 0.1,
+        "hysteresis": 1.0,
+        "noise_std": 2.0,
+        "quantization": 1.0,
+        "dropout_probability": 0.001,
+        "hold_last": true
+      },
+      "calibration": {
+        "interval_days": 90.0,
+        "coverage_factor": 2.0,
+        "uncertainty_components": {
+          "reference_standard": 3.0,
+          "repeatability": 2.0,
+          "resolution": 0.2886751345948129
+        }
+      },
+      "guard_band": {
+        "direction": "upper",
+        "critical_limit": 20400.0
+      },
+      "parameter_provenance": {
+        "engineering_range.minimum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic operating range."},
+        "engineering_range.maximum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic operating range."},
+        "chain.lag_tau_s": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic first-order time constant."},
+        "chain.gain": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic pre-calibration gain."},
+        "chain.offset": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic offset in sensor units."},
+        "chain.drift_per_hour": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic linear drift."},
+        "chain.hysteresis": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic signed hysteresis."},
+        "chain.noise_std": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic Gaussian noise standard deviation."},
+        "chain.quantization": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic display increment."},
+        "chain.dropout_probability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic independent per-step dropout probability."},
+        "calibration.interval_days": {"status": "synthetic_reference", "source_type": "foreign_regulatory_reference", "source_id": "FDA_2025_PMO", "note": "Simulation cadence only; not a flowmeter certificate."},
+        "calibration.coverage_factor": {"status": "synthetic_reference", "source_type": "metrology_method", "source_id": "NIST_TN_1297", "note": "Synthetic expanded-uncertainty coverage factor."},
+        "calibration.uncertainty_components.reference_standard": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Not traceable calibration data."},
+        "calibration.uncertainty_components.repeatability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic standard uncertainty."},
+        "calibration.uncertainty_components.resolution": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "1/sqrt(12), assuming rectangular quantization error."},
+        "guard_band.critical_limit": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic nominal maximum-safe-flow reference; runtime HACCP uses its row-specific derived limit."}
+      }
+    },
+    {
+      "tag": "PDT-101",
+      "status": "synthetic_reference",
+      "measurand": "pasteurized_minus_raw_differential_pressure",
+      "unit": "bar",
+      "engineering_range": {
+        "minimum": -0.5,
+        "maximum": 1.0
+      },
+      "chain": {
+        "lag_tau_s": 0.4,
+        "gain": 1.002,
+        "offset": -0.0002,
+        "drift_per_hour": 0.00001,
+        "hysteresis": 0.0001,
+        "noise_std": 0.0001,
+        "quantization": 0.0001,
+        "dropout_probability": 0.001,
+        "hold_last": true
+      },
+      "calibration": {
+        "interval_days": 90.0,
+        "coverage_factor": 2.0,
+        "uncertainty_components": {
+          "reference_standard": 0.0003,
+          "repeatability": 0.0002,
+          "resolution": 0.00002886751345948129
+        }
+      },
+      "guard_band": {
+        "direction": "lower",
+        "critical_limit": 0.5
+      },
+      "parameter_provenance": {
+        "engineering_range.minimum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic operating range."},
+        "engineering_range.maximum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic operating range."},
+        "chain.lag_tau_s": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic first-order time constant."},
+        "chain.gain": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic pre-calibration gain."},
+        "chain.offset": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic offset in sensor units."},
+        "chain.drift_per_hour": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic linear drift."},
+        "chain.hysteresis": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic signed hysteresis."},
+        "chain.noise_std": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic Gaussian noise standard deviation."},
+        "chain.quantization": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic display increment."},
+        "chain.dropout_probability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic independent per-step dropout probability."},
+        "calibration.interval_days": {"status": "synthetic_reference", "source_type": "foreign_regulatory_reference", "source_id": "FDA_2025_PMO", "note": "Simulation cadence only; not a pressure-device certificate."},
+        "calibration.coverage_factor": {"status": "synthetic_reference", "source_type": "metrology_method", "source_id": "NIST_TN_1297", "note": "Synthetic expanded-uncertainty coverage factor."},
+        "calibration.uncertainty_components.reference_standard": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Not traceable calibration data."},
+        "calibration.uncertainty_components.repeatability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic standard uncertainty."},
+        "calibration.uncertainty_components.resolution": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "0.0001/sqrt(12), assuming rectangular quantization error."},
+        "guard_band.critical_limit": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic hydraulic-surrogate reference aligned with the runtime monitoring plan; no site limit is claimed."}
+      }
+    },
+    {
+      "tag": "AIT-201",
+      "status": "synthetic_reference",
+      "measurand": "cip_conductivity_proxy",
+      "unit": "mS/cm",
+      "engineering_range": {"minimum": 0.0, "maximum": 100.0},
+      "chain": {
+        "lag_tau_s": 1.0,
+        "gain": 1.0,
+        "offset": 0.05,
+        "drift_per_hour": 0.001,
+        "hysteresis": 0.02,
+        "noise_std": 0.01,
+        "quantization": 0.01,
+        "dropout_probability": 0.001,
+        "hold_last": true
+      },
+      "calibration": {
+        "interval_days": 90.0,
+        "coverage_factor": 2.0,
+        "uncertainty_components": {
+          "reference_standard": 0.05,
+          "repeatability": 0.02,
+          "resolution": 0.002886751345948129
+        }
+      },
+      "guard_band": {"direction": "upper", "critical_limit": 100.0},
+      "parameter_provenance": {
+        "engineering_range.minimum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic proxy range."},
+        "engineering_range.maximum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic proxy range."},
+        "chain.lag_tau_s": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic first-order time constant."},
+        "chain.gain": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic gain."},
+        "chain.offset": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic offset."},
+        "chain.drift_per_hour": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic linear drift."},
+        "chain.hysteresis": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic signed hysteresis."},
+        "chain.noise_std": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic Gaussian noise."},
+        "chain.quantization": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic display increment."},
+        "chain.dropout_probability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic per-step dropout probability."},
+        "calibration.interval_days": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic review cadence, not a certificate interval."},
+        "calibration.coverage_factor": {"status": "synthetic_reference", "source_type": "metrology_method", "source_id": "NIST_TN_1297", "note": "Synthetic expanded-uncertainty coverage factor."},
+        "calibration.uncertainty_components.reference_standard": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic standard uncertainty."},
+        "calibration.uncertainty_components.repeatability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic standard uncertainty."},
+        "calibration.uncertainty_components.resolution": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "0.01/sqrt(12), assuming rectangular quantization error."},
+        "guard_band.critical_limit": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Schema-required synthetic bound; runtime release uses the composite relay."}
+      }
+    },
+    {
+      "tag": "AIT-202",
+      "status": "synthetic_reference",
+      "measurand": "cip_ph_proxy",
+      "unit": "pH",
+      "engineering_range": {"minimum": 0.0, "maximum": 14.0},
+      "chain": {
+        "lag_tau_s": 1.0,
+        "gain": 1.0,
+        "offset": 0.01,
+        "drift_per_hour": 0.0005,
+        "hysteresis": 0.005,
+        "noise_std": 0.003,
+        "quantization": 0.01,
+        "dropout_probability": 0.001,
+        "hold_last": true
+      },
+      "calibration": {
+        "interval_days": 90.0,
+        "coverage_factor": 2.0,
+        "uncertainty_components": {
+          "reference_standard": 0.02,
+          "repeatability": 0.01,
+          "resolution": 0.002886751345948129
+        }
+      },
+      "guard_band": {"direction": "upper", "critical_limit": 14.0},
+      "parameter_provenance": {
+        "engineering_range.minimum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic proxy range."},
+        "engineering_range.maximum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic proxy range."},
+        "chain.lag_tau_s": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic first-order time constant."},
+        "chain.gain": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic gain."},
+        "chain.offset": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic offset."},
+        "chain.drift_per_hour": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic linear drift."},
+        "chain.hysteresis": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic signed hysteresis."},
+        "chain.noise_std": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic Gaussian noise."},
+        "chain.quantization": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic display increment."},
+        "chain.dropout_probability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic per-step dropout probability."},
+        "calibration.interval_days": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic review cadence, not a certificate interval."},
+        "calibration.coverage_factor": {"status": "synthetic_reference", "source_type": "metrology_method", "source_id": "NIST_TN_1297", "note": "Synthetic expanded-uncertainty coverage factor."},
+        "calibration.uncertainty_components.reference_standard": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic standard uncertainty."},
+        "calibration.uncertainty_components.repeatability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic standard uncertainty."},
+        "calibration.uncertainty_components.resolution": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "0.01/sqrt(12), assuming rectangular quantization error."},
+        "guard_band.critical_limit": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Schema-required synthetic bound; runtime release uses the composite relay."}
+      }
+    },
+    {
+      "tag": "AIT-203",
+      "status": "synthetic_reference",
+      "measurand": "product_interface_signal_fraction",
+      "unit": "fraction",
+      "engineering_range": {"minimum": 0.0, "maximum": 1.0},
+      "chain": {
+        "lag_tau_s": 0.5,
+        "gain": 1.0,
+        "offset": 0.0,
+        "drift_per_hour": 0.0001,
+        "hysteresis": 0.001,
+        "noise_std": 0.001,
+        "quantization": 0.001,
+        "dropout_probability": 0.001,
+        "hold_last": true
+      },
+      "calibration": {
+        "interval_days": 90.0,
+        "coverage_factor": 2.0,
+        "uncertainty_components": {
+          "reference_standard": 0.002,
+          "repeatability": 0.001,
+          "resolution": 0.0002886751345948129
+        }
+      },
+      "guard_band": {"direction": "lower", "critical_limit": 0.0},
+      "parameter_provenance": {
+        "engineering_range.minimum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic proxy range."},
+        "engineering_range.maximum": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic proxy range."},
+        "chain.lag_tau_s": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic first-order time constant."},
+        "chain.gain": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic gain."},
+        "chain.offset": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic offset."},
+        "chain.drift_per_hour": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic linear drift."},
+        "chain.hysteresis": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic signed hysteresis."},
+        "chain.noise_std": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic Gaussian noise."},
+        "chain.quantization": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic display increment."},
+        "chain.dropout_probability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic per-step dropout probability."},
+        "calibration.interval_days": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic review cadence, not a certificate interval."},
+        "calibration.coverage_factor": {"status": "synthetic_reference", "source_type": "metrology_method", "source_id": "NIST_TN_1297", "note": "Synthetic expanded-uncertainty coverage factor."},
+        "calibration.uncertainty_components.reference_standard": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic standard uncertainty."},
+        "calibration.uncertainty_components.repeatability": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Synthetic standard uncertainty."},
+        "calibration.uncertainty_components.resolution": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "0.001/sqrt(12), assuming rectangular quantization error."},
+        "guard_band.critical_limit": {"status": "synthetic_reference", "source_type": "engineering_assumption", "source_id": "SYNTHETIC_CHAIN_V1", "note": "Schema-required synthetic bound; runtime release uses the composite relay."}
+      }
+    }
+  ]
+}

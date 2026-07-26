@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.venv/
+
+# Reproducible generated artifacts; regenerate from the committed source/config.
+results/
+results_*/
+digital_twin_results/
+campaign_results/
+uncertainty_results/
+uncertainty_results_*/
+ml_results/
+ml_datasets/
+ml_baselines/
+d3_results/
+multicycle_rul_results/
+
+# Historical validation notes are outside this simulation-only repository.
+archive/

@@ -1,0 +1,134 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "HTST-MC-REFERENCE-001",
+  "description": "Public-reference, synthetic multi-cycle maintenance policy for the HTST research surrogate.",
+  "model_status": "unvalidated_engineering_assumption",
+  "seed": 20260725,
+  "default_cycles": 36,
+  "production_hours_per_cycle": 16.0,
+  "load_factor": 1.0,
+  "cip_pattern": [
+    "complete",
+    "complete",
+    "complete",
+    "incomplete"
+  ],
+  "cip_recipes": {
+    "complete": {
+      "fouling_removal_fraction": 0.92,
+      "chemical_exposure_factor": 1.0,
+      "description": "Full reference alkaline/acid/rinse sequence; removal is a synthetic assumption."
+    },
+    "incomplete": {
+      "fouling_removal_fraction": 0.55,
+      "chemical_exposure_factor": 0.65,
+      "description": "Truncated/ineffective reference clean used for fault experiments."
+    }
+  },
+  "components": [
+    {
+      "asset_id": "HX-101",
+      "component_type": "plate_heat_exchanger",
+      "failure_mode": "thermal_hydraulic_degradation",
+      "weibull_shape": 2.4,
+      "weibull_scale_h": 9000.0,
+      "damage_rate_per_operating_h": 0.000055,
+      "cip_damage_per_exposure": 0.00045,
+      "fouling_rate_per_operating_h": 0.0032,
+      "damage_limit": 1.0,
+      "fouling_limit": 1.0,
+      "priority": 1
+    },
+    {
+      "asset_id": "P-101",
+      "component_type": "timing_pump",
+      "failure_mode": "bearing_wear",
+      "weibull_shape": 2.1,
+      "weibull_scale_h": 7000.0,
+      "damage_rate_per_operating_h": 0.000075,
+      "cip_damage_per_exposure": 0.00020,
+      "fouling_rate_per_operating_h": 0.0,
+      "damage_limit": 1.0,
+      "fouling_limit": 1.0,
+      "priority": 2
+    },
+    {
+      "asset_id": "XV-101",
+      "component_type": "flow_diversion_valve",
+      "failure_mode": "actuation_wear",
+      "weibull_shape": 2.8,
+      "weibull_scale_h": 11000.0,
+      "damage_rate_per_operating_h": 0.000040,
+      "cip_damage_per_exposure": 0.00035,
+      "fouling_rate_per_operating_h": 0.0,
+      "damage_limit": 1.0,
+      "fouling_limit": 1.0,
+      "priority": 3
+    },
+    {
+      "asset_id": "TT-102B",
+      "component_type": "safety_temperature_sensor",
+      "failure_mode": "calibration_drift",
+      "weibull_shape": 1.7,
+      "weibull_scale_h": 5000.0,
+      "damage_rate_per_operating_h": 0.000060,
+      "cip_damage_per_exposure": 0.00010,
+      "fouling_rate_per_operating_h": 0.0,
+      "damage_limit": 1.0,
+      "fouling_limit": 1.0,
+      "priority": 4
+    }
+  ],
+  "scheduled_actions": [
+    {
+      "asset_id": "TT-102B",
+      "every_cycles": 6,
+      "action": "calibrate",
+      "virtual_age_factor": 1.0,
+      "damage_factor": 0.35,
+      "fouling_factor": 1.0
+    },
+    {
+      "asset_id": "P-101",
+      "every_cycles": 12,
+      "action": "minor_repair",
+      "virtual_age_factor": 0.65,
+      "damage_factor": 0.60,
+      "fouling_factor": 1.0
+    },
+    {
+      "asset_id": "XV-101",
+      "every_cycles": 15,
+      "action": "minor_repair",
+      "virtual_age_factor": 0.70,
+      "damage_factor": 0.65,
+      "fouling_factor": 1.0
+    },
+    {
+      "asset_id": "HX-101",
+      "every_cycles": 18,
+      "action": "overhaul",
+      "virtual_age_factor": 0.25,
+      "damage_factor": 0.25,
+      "fouling_factor": 0.05
+    }
+  ],
+  "corrective_action": {
+    "action": "replace",
+    "virtual_age_factor": 0.0,
+    "damage_factor": 0.0,
+    "fouling_factor": 0.0
+  },
+  "sources": [
+    {
+      "source_id": "KIJIMA_GRPII",
+      "url": "https://doi.org/10.1017/S0021900200041826",
+      "use": "Kijima's primary virtual-age/general-repair structure; no fitted coefficients were transferred."
+    },
+    {
+      "source_id": "SHARMA_MACCHIETTO_2021",
+      "url": "https://doi.org/10.1016/j.fbp.2020.12.005",
+      "use": "Structural coupling of dairy heat-exchanger fouling and cleaning; coefficients remain synthetic."
+    }
+  ]
+}

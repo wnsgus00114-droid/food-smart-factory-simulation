@@ -1,0 +1,275 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "HTST-HACCP-REFERENCE-001",
+  "title": "Continuous milk HTST reference HACCP evidence plan",
+  "conformity_status": "not_assessed",
+  "model_status": "Unvalidated reference evidence plan. It is not a HACCP certification, product-release authorization, regulatory determination, or electronic signature system.",
+  "shadow_only": true,
+  "assurance": {
+    "regulatory_conformity": "not_assessed",
+    "plant_validation": "not_assessed",
+    "process_safety_validation": "not_assessed",
+    "certification_claim": false,
+    "electronic_signature_claim": false,
+    "automatic_product_release": false
+  },
+  "product_and_scope": {
+    "product": "Reference refrigerated pasteurized milk",
+    "process": "Continuous HTST reference simulator",
+    "intended_use": "Synthetic research evidence and control-logic regression only",
+    "consumer": "Not assessed",
+    "scope_start": "RAW-INLET",
+    "scope_end": "PRODUCT-OUTLET",
+    "flow_diagram_status": "reference_not_on_site_verified",
+    "prerequisite_programs_status": "outside_runtime_scope_not_assessed"
+  },
+  "source_registry": [
+    {
+      "source_id": "KR-MFDS-2026-25-ART6",
+      "authority": "대한민국 식품의약품안전처 / 국가법령정보센터",
+      "title": "식품 및 축산물 안전관리인증기준",
+      "identifier": "식품의약품안전처고시 제2026-25호",
+      "effective_date": "2026-03-31",
+      "provision": "제6조(안전관리인증기준 관리) 제1항 및 제2항",
+      "url": "https://www.law.go.kr/admRulLsInfoP.do?admRulSeq=2100000276712",
+      "use": "Seven-principle plan structure and the requirement that a plan be based on scientific grounds or facts and be reviewed when CCPs or limits change.",
+      "conformity_status": "not_assessed",
+      "principles": [
+        {"number": 1, "name": "위해요소 분석"},
+        {"number": 2, "name": "중요관리점 결정"},
+        {"number": 3, "name": "한계기준 설정"},
+        {"number": 4, "name": "모니터링 체계 확립"},
+        {"number": 5, "name": "개선조치 방법 수립"},
+        {"number": 6, "name": "검증 절차 및 방법 수립"},
+        {"number": 7, "name": "문서화 및 기록 유지"}
+      ]
+    },
+    {
+      "source_id": "CODEX-CXC-1-1969-2022",
+      "authority": "Codex Alimentarius Commission (FAO/WHO)",
+      "title": "General Principles of Food Hygiene",
+      "identifier": "CXC 1-1969, last modified 2022",
+      "effective_date": "2022",
+      "provision": "HACCP system and guidelines for its application",
+      "url": "https://www.fao.org/fao-who-codexalimentarius/codex-texts/codes-of-practice/en/",
+      "use": "International seven-principle HACCP structure; no claim that this reference plan satisfies the text.",
+      "conformity_status": "not_assessed",
+      "principles": [
+        {"number": 1, "name": "Conduct a hazard analysis and identify control measures"},
+        {"number": 2, "name": "Determine critical control points"},
+        {"number": 3, "name": "Establish validated critical limits"},
+        {"number": 4, "name": "Establish monitoring procedures"},
+        {"number": 5, "name": "Establish corrective actions"},
+        {"number": 6, "name": "Validate and verify the HACCP plan"},
+        {"number": 7, "name": "Establish documentation and record keeping"}
+      ]
+    },
+    {
+      "source_id": "FDA-NACMCF-HACCP-1997",
+      "authority": "United States FDA / NACMCF",
+      "title": "HACCP Principles & Application Guidelines",
+      "identifier": "NACMCF, adopted 1997-08-14",
+      "effective_date": "1997-08-14",
+      "provision": "HACCP Principles 1 through 7",
+      "url": "https://www.fda.gov/food/hazard-analysis-critical-control-point-haccp/haccp-principles-application-guidelines",
+      "use": "Seven-principle record structure, including monitoring, corrective action, verification and records; guidance is not a Korean conformity determination.",
+      "conformity_status": "not_assessed",
+      "principles": [
+        {"number": 1, "name": "Conduct a hazard analysis"},
+        {"number": 2, "name": "Determine critical control points"},
+        {"number": 3, "name": "Establish critical limits"},
+        {"number": 4, "name": "Establish monitoring procedures"},
+        {"number": 5, "name": "Establish corrective actions"},
+        {"number": 6, "name": "Establish verification procedures"},
+        {"number": 7, "name": "Establish record-keeping and documentation procedures"}
+      ]
+    }
+  ],
+  "hazard_analysis": [
+    {
+      "hazard_id": "H-PROC-001",
+      "category": "PROCESS_CONTROL",
+      "process_step": "HTST heating and holding",
+      "hazard": "Time-temperature-flow process condition outside the reference operating envelope",
+      "significance": "reference_assumption_not_validated",
+      "rationale": "Temperature, fastest-path holding time and flow are monitored as separate conservative process gates; plant-specific safety validation is outside this runtime evidence layer.",
+      "control_ids": ["CCP-HTST-THERMAL"],
+      "source_ids": ["KR-MFDS-2026-25-ART6", "CODEX-CXC-1-1969-2022", "FDA-NACMCF-HACCP-1997"],
+      "scope_status": "runtime_evaluated"
+    },
+    {
+      "hazard_id": "H-PROC-002",
+      "category": "PROCESS_CONTROL",
+      "process_step": "Regeneration and pasteurized-side pressure control",
+      "hazard": "Loss of the reference pasteurized-to-raw differential-pressure relationship",
+      "significance": "reference_assumption_not_validated",
+      "rationale": "A measured differential-pressure gate represents a process-control proxy; it is not a verified hydraulic-integrity model.",
+      "control_ids": ["OPRP-PRESSURE-DIFFERENTIAL"],
+      "source_ids": ["KR-MFDS-2026-25-ART6", "CODEX-CXC-1-1969-2022"],
+      "scope_status": "runtime_evaluated"
+    },
+    {
+      "hazard_id": "H-CHEM-001",
+      "category": "CHEMICAL",
+      "process_step": "CIP to production release transition",
+      "hazard": "Reference CIP chemical or water-product interface not cleared before production release",
+      "significance": "reference_assumption_not_validated",
+      "rationale": "The simulator release relay combines synthetic conductivity, pH and interface proxies; actual residue limits and analytical validation are absent.",
+      "control_ids": ["OPRP-CIP-RELEASE"],
+      "source_ids": ["KR-MFDS-2026-25-ART6", "CODEX-CXC-1-1969-2022"],
+      "scope_status": "runtime_evaluated"
+    },
+    {
+      "hazard_id": "H-PHYS-001",
+      "category": "PHYSICAL",
+      "process_step": "Raw material receipt through packaging",
+      "hazard": "Foreign material",
+      "significance": "not_assessed",
+      "rationale": "Filtering, packaging and foreign-material inspection are outside the current HTST runtime boundary and require a plant-specific prerequisite/control study.",
+      "control_ids": [],
+      "source_ids": ["KR-MFDS-2026-25-ART6", "CODEX-CXC-1-1969-2022"],
+      "scope_status": "outside_runtime_scope_not_assessed"
+    }
+  ],
+  "controls": [
+    {
+      "control_id": "CCP-HTST-THERMAL",
+      "control_type": "CCP",
+      "process_step": "Holding-tube outlet and flow control",
+      "hazard_ids": ["H-PROC-001"],
+      "applicability": "production_only",
+      "critical_limits": [
+        {
+          "limit_id": "CL-TEMP-MIN",
+          "signal": "safety_temp_sensor_c",
+          "operator": ">=",
+          "value": 72.3,
+          "unit": "degC",
+          "calibration_tags": ["TT-104"],
+          "basis_type": "engineering_reference_not_validated",
+          "rationale": "Reference diversion threshold 72.0 degC plus 0.30 degC forward margin; not a validated scheduled process or statutory product limit.",
+          "source_ids": ["KR-MFDS-2026-25-ART6", "CODEX-CXC-1-1969-2022", "FDA-NACMCF-HACCP-1997"]
+        },
+        {
+          "limit_id": "CL-HOLD-MIN",
+          "signal": "estimated_fastest_residence_time_s",
+          "operator": ">=",
+          "value": 15.0,
+          "unit": "s",
+          "calibration_tags": ["FT-101"],
+          "basis_type": "engineering_reference_not_validated",
+          "rationale": "Reference fastest-path minimum used by the simulator; actual holding-tube RTD and legal product schedule are not assessed.",
+          "source_ids": ["KR-MFDS-2026-25-ART6", "CODEX-CXC-1-1969-2022", "FDA-NACMCF-HACCP-1997"]
+        },
+        {
+          "limit_id": "CL-FLOW-MAX",
+          "signal": "measured_flow_l_h",
+          "operator": "<=",
+          "reference_signal": "maximum_safe_flow_l_h",
+          "unit": "L/h",
+          "calibration_tags": ["FT-101"],
+          "basis_type": "derived_engineering_reference_not_validated",
+          "rationale": "The model-derived maximum flow corresponds to its configured holding volume and fastest-flow proxy; it is not a validated meter set point.",
+          "source_ids": ["KR-MFDS-2026-25-ART6", "CODEX-CXC-1-1969-2022", "FDA-NACMCF-HACCP-1997"]
+        }
+      ],
+      "monitoring": {
+        "what": "Independent safety temperature, fastest-path estimated residence time and measured flow",
+        "how": "Evaluate each emitted production row against each explicit reference limit",
+        "frequency": "every_simulator_row",
+        "who": "reference_shadow_controller_not_a_person"
+      },
+      "corrective_action": {
+        "immediate_actions": ["HOLD", "DIVERT", "QUARANTINE"],
+        "investigation": "Review affected synthetic lot interval, instrumentation status and process cause",
+        "disposition": "Manual authorized review is required; this software cannot release product",
+        "release_authority": "external_authorized_haccp_role_not_implemented",
+        "automatic_release": false
+      },
+      "verification": {
+        "activities": ["Review monitoring and deviation records", "Review calibration status", "Verify evidence hash chain", "Reassess limits after plan change"],
+        "frequency": "per_run_and_after_change",
+        "who": "external_haccp_team_not_implemented"
+      },
+      "records": ["MONITORING_EVIDENCE", "DEVIATION_RECORD", "CONTAINMENT_ACTION", "CALIBRATION_STATUS_REFERENCE", "HASH_CHAIN_VERIFICATION"]
+    },
+    {
+      "control_id": "OPRP-PRESSURE-DIFFERENTIAL",
+      "control_type": "OPRP",
+      "process_step": "Regenerator pasteurized-to-raw pressure relationship",
+      "hazard_ids": ["H-PROC-002"],
+      "applicability": "production_only",
+      "critical_limits": [
+        {
+          "limit_id": "CL-DP-MIN",
+          "signal": "measured_differential_pressure_bar",
+          "operator": ">=",
+          "value": 0.5,
+          "unit": "bar",
+          "calibration_tags": ["PDT-101"],
+          "basis_type": "engineering_reference_not_validated",
+          "rationale": "Reference positive differential-pressure gate in the hydraulic surrogate; actual pressure network and accepted site limit are not assessed.",
+          "source_ids": ["KR-MFDS-2026-25-ART6", "CODEX-CXC-1-1969-2022"]
+        }
+      ],
+      "monitoring": {
+        "what": "Measured pasteurized-to-raw differential pressure",
+        "how": "Evaluate each emitted production row against the explicit reference minimum",
+        "frequency": "every_simulator_row",
+        "who": "reference_shadow_controller_not_a_person"
+      },
+      "corrective_action": {
+        "immediate_actions": ["HOLD", "DIVERT", "QUARANTINE"],
+        "investigation": "Review pressure transmitters, booster response and synthetic leak indicators",
+        "disposition": "Manual authorized review is required; this software cannot release product",
+        "release_authority": "external_authorized_haccp_role_not_implemented",
+        "automatic_release": false
+      },
+      "verification": {
+        "activities": ["Review pressure trend and deviations", "Review calibration status", "Verify evidence hash chain"],
+        "frequency": "per_run_and_after_change",
+        "who": "external_haccp_team_not_implemented"
+      },
+      "records": ["MONITORING_EVIDENCE", "DEVIATION_RECORD", "CONTAINMENT_ACTION", "CALIBRATION_STATUS_REFERENCE", "HASH_CHAIN_VERIFICATION"]
+    },
+    {
+      "control_id": "OPRP-CIP-RELEASE",
+      "control_type": "OPRP",
+      "process_step": "CIP-to-production release gate",
+      "hazard_ids": ["H-CHEM-001"],
+      "applicability": "production_only",
+      "critical_limits": [
+        {
+          "limit_id": "CL-CIP-RELEASE",
+          "signal": "cip_release_permissive",
+          "operator": "==",
+          "value": 1,
+          "unit": "boolean",
+          "calibration_tags": ["AIT-201", "AIT-202", "AIT-203"],
+          "basis_type": "synthetic_composite_relay_not_validated",
+          "rationale": "Synthetic conductivity, pH and product-interface release relay; actual chemical residue specifications and analytical validation are not assessed.",
+          "source_ids": ["KR-MFDS-2026-25-ART6", "CODEX-CXC-1-1969-2022"]
+        }
+      ],
+      "monitoring": {
+        "what": "CIP conductivity/pH/interface composite release relay",
+        "how": "Require the explicit release relay before any production-row evidence can pass",
+        "frequency": "every_simulator_production_row",
+        "who": "reference_shadow_controller_not_a_person"
+      },
+      "corrective_action": {
+        "immediate_actions": ["HOLD", "DIVERT", "QUARANTINE"],
+        "investigation": "Review rinse endpoint, interface signal and calibration status",
+        "disposition": "Manual authorized review is required; this software cannot release product",
+        "release_authority": "external_authorized_haccp_role_not_implemented",
+        "automatic_release": false
+      },
+      "verification": {
+        "activities": ["Review CIP endpoint and transition records", "Review calibration status", "Verify evidence hash chain"],
+        "frequency": "per_cip_transition_and_after_change",
+        "who": "external_haccp_team_not_implemented"
+      },
+      "records": ["MONITORING_EVIDENCE", "DEVIATION_RECORD", "CONTAINMENT_ACTION", "CALIBRATION_STATUS_REFERENCE", "HASH_CHAIN_VERIFICATION"]
+    }
+  ]
+}

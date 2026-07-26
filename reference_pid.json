@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0.0",
+  "plant_id": "HTST-MILK-REFERENCE-001",
+  "title": "Public-reference continuous milk HTST shadow P&ID",
+  "model_status": "Unvalidated reference plant. This topology is a software research contract, not an as-built P&ID or an instruction to operate equipment.",
+  "shadow_only": true,
+  "design_basis": {
+    "nominal_flow_l_h": 20000.0,
+    "nominal_holding_time_s": 18.0,
+    "holding_after_heating": true,
+    "fdv_location": "immediately downstream of holding and safety instrumentation",
+    "divert_destination": "TK-101 balance tank",
+    "forward_destination": "regeneration hot side, final cooler, product boundary"
+  },
+  "boundaries": [
+    {"tag": "RAW-INLET", "kind": "source", "description": "Raw milk reference boundary"},
+    {"tag": "PRODUCT-OUTLET", "kind": "sink", "description": "Cooled forward-product boundary"},
+    {"tag": "DRAIN-OUTLET", "kind": "sink", "description": "Reference transition/CIP drain boundary"},
+    {"tag": "STEAM-INLET", "kind": "utility_source", "description": "Heating utility boundary"},
+    {"tag": "COOLING-INLET", "kind": "utility_source", "description": "Cooling utility boundary"},
+    {"tag": "ALKALI-INLET", "kind": "chemical_source", "description": "Reference CIP alkali supply boundary"},
+    {"tag": "ACID-INLET", "kind": "chemical_source", "description": "Reference CIP acid supply boundary"}
+  ],
+  "equipment": [
+    {"tag": "TK-101", "kind": "balance_tank", "description": "Perfect-mix balance tank", "simulator_component": "BalanceTank"},
+    {"tag": "HX-101-A", "kind": "regenerator_cold_side", "description": "Regeneration section, incoming-product side", "simulator_component": "regenerator_hx"},
+    {"tag": "HX-101-B", "kind": "heater", "description": "Final heating section", "simulator_component": "heater_hx"},
+    {"tag": "HT-101", "kind": "holding_tube", "description": "Fixed-volume parcel holding section", "simulator_component": "holding_queue"},
+    {"tag": "HX-101-C", "kind": "regenerator_hot_side", "description": "Regeneration section, pasteurized-product side", "simulator_component": "post_fdv_queue"},
+    {"tag": "HX-101-D", "kind": "final_cooler", "description": "Final product cooling section", "simulator_component": "cooler_hx"},
+    {"tag": "CIP-201", "kind": "cip_skid", "description": "Reference alkali/acid/rinse recipe and return boundary", "simulator_component": "cip_soil_model"}
+  ],
+  "actuators": [
+    {
+      "tag": "P-101",
+      "kind": "feed_pump",
+      "description": "Balance-tank feed pump",
+      "simulator_field": "flow_l_h",
+      "command_field": "feed_pump_command",
+      "command_io": "DO-101",
+      "fail_position": "STOPPED"
+    },
+    {
+      "tag": "P-102",
+      "kind": "booster_pump",
+      "description": "Pasteurized-side pressure booster",
+      "simulator_field": "booster_pump_factor",
+      "command_field": "booster_pump_command",
+      "command_io": "DO-102",
+      "feedback_field": "booster_pump_speed_fraction",
+      "feedback_io": "AI-112",
+      "fail_position": "STOPPED"
+    },
+    {
+      "tag": "TV-101",
+      "kind": "steam_control_valve",
+      "description": "Heating-utility control valve",
+      "simulator_field": "steam_valve",
+      "command_field": "steam_enable",
+      "command_io": "DO-103",
+      "fail_position": "CLOSED"
+    },
+    {
+      "tag": "FDV-101",
+      "kind": "flow_diversion_valve",
+      "description": "Forward/divert routing valve; loss of command selects divert",
+      "simulator_field": "fdv_position",
+      "command_field": "fdv_command_forward",
+      "command_io": "DO-104",
+      "feedback_field": "fdv_position_feedback",
+      "feedback_io": "AI-113",
+      "fail_position": "DIVERT"
+    },
+    {
+      "tag": "P-201",
+      "kind": "cip_return_pump",
+      "description": "Reference CIP circulation pump",
+      "simulator_field": "cip_cycle_active",
+      "command_field": "cip_pump_command",
+      "command_io": "DO-201",
+      "fail_position": "STOPPED"
+    },
+    {
+      "tag": "XV-201",
+      "kind": "cip_drain_valve",
+      "description": "Reference rinse/interface drain valve",
+      "simulator_field": "transition_drained_l",
+      "command_field": "cip_drain_valve",
+      "command_io": "DO-202",
+      "fail_position": "CLOSED"
+    },
+    {
+      "tag": "CV-201",
+      "kind": "alkali_dosing_valve",
+      "description": "Reference alkali dosing valve",
+      "simulator_field": "cip_chemical_concentration_pct",
+      "command_field": "cip_alkali_valve",
+      "command_io": "DO-203",
+      "fail_position": "CLOSED"
+    },
+    {
+      "tag": "CV-202",
+      "kind": "acid_dosing_valve",
+      "description": "Reference acid dosing valve",
+      "simulator_field": "cip_chemical_concentration_pct",
+      "command_field": "cip_acid_valve",
+      "command_io": "DO-204",
+      "fail_position": "CLOSED"
+    }
+  ],
+  "lines": [
+    {"tag": "L-001", "from": "RAW-INLET", "to": "TK-101", "service": "raw_milk", "nominal_holdup_l": 5.0},
+    {"tag": "L-002", "from": "TK-101", "to": "P-101", "service": "raw_or_returned_milk", "nominal_holdup_l": 5.0},
+    {"tag": "L-003", "from": "P-101", "to": "HX-101-A", "service": "raw_milk", "nominal_holdup_l": 8.0},
+    {"tag": "L-004", "from": "HX-101-A", "to": "HX-101-B", "service": "preheated_milk", "nominal_holdup_l": 5.0},
+    {"tag": "L-005", "from": "HX-101-B", "to": "HT-101", "service": "heated_milk", "nominal_holdup_l": 4.0},
+    {"tag": "L-006", "from": "HT-101", "to": "P-102", "service": "held_milk", "nominal_holdup_l": 3.0},
+    {"tag": "L-007", "from": "P-102", "to": "FDV-101", "service": "pasteurized_side_sensor_to_fdv", "nominal_holdup_l": 8.3333333333},
+    {"tag": "L-008", "from": "FDV-101", "to": "HX-101-C", "service": "forward_pasteurized_milk", "nominal_holdup_l": 8.0},
+    {"tag": "L-009", "from": "HX-101-C", "to": "HX-101-D", "service": "regenerated_pasteurized_milk", "nominal_holdup_l": 10.0},
+    {"tag": "L-010", "from": "HX-101-D", "to": "PRODUCT-OUTLET", "service": "cooled_product", "nominal_holdup_l": 9.7777777778},
+    {"tag": "L-011", "from": "FDV-101", "to": "TK-101", "service": "divert_return", "nominal_holdup_l": 5.0},
+    {"tag": "L-201", "from": "CIP-201", "to": "P-201", "service": "cip_supply", "nominal_holdup_l": 15.0},
+    {"tag": "L-202", "from": "P-201", "to": "HX-101-A", "service": "cip_circuit", "nominal_holdup_l": 20.0},
+    {"tag": "L-203", "from": "FDV-101", "to": "CIP-201", "service": "cip_return", "nominal_holdup_l": 25.0},
+    {"tag": "L-204", "from": "CIP-201", "to": "XV-201", "service": "cip_or_interface_drain", "nominal_holdup_l": 2.0},
+    {"tag": "L-205", "from": "XV-201", "to": "DRAIN-OUTLET", "service": "drain", "nominal_holdup_l": 2.0},
+    {"tag": "U-101", "from": "STEAM-INLET", "to": "TV-101", "service": "heating_utility", "nominal_holdup_l": 1.0},
+    {"tag": "U-102", "from": "TV-101", "to": "HX-101-B", "service": "heating_utility", "nominal_holdup_l": 2.0},
+    {"tag": "U-103", "from": "COOLING-INLET", "to": "HX-101-D", "service": "cooling_utility", "nominal_holdup_l": 2.0},
+    {"tag": "C-201", "from": "ALKALI-INLET", "to": "CV-201", "service": "cip_alkali_supply", "nominal_holdup_l": 1.0},
+    {"tag": "C-202", "from": "CV-201", "to": "CIP-201", "service": "cip_alkali_dose", "nominal_holdup_l": 1.0},
+    {"tag": "C-203", "from": "ACID-INLET", "to": "CV-202", "service": "cip_acid_supply", "nominal_holdup_l": 1.0},
+    {"tag": "C-204", "from": "CV-202", "to": "CIP-201", "service": "cip_acid_dose", "nominal_holdup_l": 1.0}
+  ],
+  "instruments": [
+    {"tag": "LT-101", "kind": "level_transmitter", "installed_on": "TK-101", "simulator_field": "balance_tank_volume_l", "io_address": "AI-101", "unit": "L"},
+    {"tag": "TT-101", "kind": "temperature_transmitter", "installed_on": "L-003", "simulator_field": "inlet_temp_c", "io_address": "AI-102", "unit": "degC"},
+    {"tag": "TT-102", "kind": "temperature_transmitter", "installed_on": "L-004", "simulator_field": "preheat_temp_sensor_c", "io_address": "AI-103", "unit": "degC"},
+    {"tag": "TT-103", "kind": "recording_control_temperature", "installed_on": "HT-101", "simulator_field": "control_temp_sensor_c", "io_address": "AI-104", "unit": "degC"},
+    {"tag": "TT-104", "kind": "independent_safety_temperature", "installed_on": "HT-101", "simulator_field": "safety_temp_sensor_c", "io_address": "AI-105", "unit": "degC"},
+    {"tag": "FT-101", "kind": "flow_transmitter", "installed_on": "L-006", "simulator_field": "measured_flow_l_h", "io_address": "AI-106", "unit": "L/h"},
+    {"tag": "PT-101", "kind": "raw_side_pressure_transmitter", "installed_on": "L-003", "simulator_field": "raw_pressure_sensor_bar", "io_address": "AI-107", "unit": "bar"},
+    {"tag": "PT-102", "kind": "pasteurized_side_pressure_transmitter", "installed_on": "L-007", "simulator_field": "pasteurized_pressure_sensor_bar", "io_address": "AI-108", "unit": "bar"},
+    {"tag": "PDT-101", "kind": "differential_pressure_transmitter", "installed_on": "P-102", "simulator_field": "measured_differential_pressure_bar", "io_address": "AI-109", "unit": "bar"},
+    {"tag": "AT-101", "kind": "regenerator_leak_indicator", "installed_on": "HX-101-A", "simulator_field": "leak_detector_signal_fraction", "io_address": "AI-110", "unit": "fraction"},
+    {"tag": "TT-105", "kind": "product_temperature_transmitter", "installed_on": "L-010", "simulator_field": "product_temp_sensor_c", "io_address": "AI-111", "unit": "degC"},
+    {"tag": "AIT-201", "kind": "cip_conductivity_transmitter", "installed_on": "L-203", "simulator_field": "cip_conductivity_proxy_ms_cm", "io_address": "AI-201", "unit": "mS/cm"},
+    {"tag": "AIT-202", "kind": "cip_ph_transmitter", "installed_on": "L-203", "simulator_field": "cip_ph_proxy", "io_address": "AI-202", "unit": "pH"},
+    {"tag": "AIT-203", "kind": "product_interface_indicator", "installed_on": "L-008", "simulator_field": "restart_product_interface_signal_fraction", "io_address": "AI-203", "unit": "fraction"},
+    {"tag": "YS-901", "kind": "power_status", "installed_on": "P-101", "simulator_field": "power_good_signal", "io_address": "DI-901", "unit": "boolean"},
+    {"tag": "YS-902", "kind": "temperature_channel_quality", "installed_on": "TT-104", "simulator_field": "temperature_sensor_quality_ok", "io_address": "DI-902", "unit": "boolean"}
+  ],
+  "required_paths": [
+    {
+      "path_id": "RAW_TO_PRODUCT",
+      "description": "Normal forward product path",
+      "nodes": ["RAW-INLET", "TK-101", "P-101", "HX-101-A", "HX-101-B", "HT-101", "P-102", "FDV-101", "HX-101-C", "HX-101-D", "PRODUCT-OUTLET"]
+    },
+    {
+      "path_id": "FDV_DIVERT_RETURN",
+      "description": "Fail-divert return path",
+      "nodes": ["FDV-101", "TK-101"]
+    },
+    {
+      "path_id": "CIP_RECIRCULATION",
+      "description": "Reference CIP recirculation path",
+      "nodes": ["CIP-201", "P-201", "HX-101-A", "HX-101-B", "HT-101", "P-102", "FDV-101", "CIP-201"]
+    },
+    {
+      "path_id": "CIP_DRAIN",
+      "description": "Reference rinse/interface drain path",
+      "nodes": ["CIP-201", "XV-201", "DRAIN-OUTLET"]
+    },
+    {
+      "path_id": "CIP_ALKALI_DOSING",
+      "description": "Reference alkali dosing path",
+      "nodes": ["ALKALI-INLET", "CV-201", "CIP-201"]
+    },
+    {
+      "path_id": "CIP_ACID_DOSING",
+      "description": "Reference acid dosing path",
+      "nodes": ["ACID-INLET", "CV-202", "CIP-201"]
+    }
+  ]
+}

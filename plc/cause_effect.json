@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0.0",
+  "controller_id": "HTST-PLC-SHADOW-001",
+  "shadow_only": true,
+  "status": "Unvalidated vendor-neutral reference cause-and-effect matrix. It does not control physical equipment.",
+  "causes": [
+    {
+      "cause_id": "TRIP_ESTOP",
+      "input_name": "emergency_stop",
+      "predicate": "TRUE",
+      "classification": "TRIP",
+      "latching": true,
+      "effect_state": "TRIP",
+      "actions": ["FDV_DIVERT", "ALL_PUMPS_STOP", "STEAM_CLOSE"],
+      "python_rule": "TRIP_ESTOP",
+      "st_marker": "TRACE:TRIP_ESTOP"
+    },
+    {
+      "cause_id": "TRIP_POWER_BAD",
+      "input_name": "power_good",
+      "predicate": "FALSE",
+      "classification": "TRIP",
+      "latching": true,
+      "effect_state": "TRIP",
+      "actions": ["FDV_DIVERT", "ALL_PUMPS_STOP", "STEAM_CLOSE"],
+      "python_rule": "TRIP_POWER_BAD",
+      "st_marker": "TRACE:TRIP_POWER_BAD"
+    },
+    {
+      "cause_id": "TRIP_SENSOR_BAD",
+      "input_name": "temperature_sensor_quality_ok",
+      "predicate": "FALSE",
+      "classification": "TRIP",
+      "latching": true,
+      "effect_state": "TRIP",
+      "actions": ["FDV_DIVERT", "STEAM_CLOSE"],
+      "python_rule": "TRIP_SENSOR_BAD",
+      "st_marker": "TRACE:TRIP_SENSOR_BAD"
+    },
+    {
+      "cause_id": "TRIP_FDV_MISMATCH",
+      "input_name": "fdv_mismatch",
+      "predicate": "TRUE",
+      "classification": "TRIP",
+      "latching": true,
+      "effect_state": "TRIP",
+      "actions": ["FDV_DIVERT", "ALL_PUMPS_STOP", "STEAM_CLOSE"],
+      "python_rule": "TRIP_FDV_MISMATCH",
+      "st_marker": "TRACE:TRIP_FDV_MISMATCH"
+    },
+    {
+      "cause_id": "TRIP_REGENERATOR_LEAK",
+      "input_name": "regenerator_leak",
+      "predicate": "TRUE",
+      "classification": "TRIP",
+      "latching": true,
+      "effect_state": "TRIP",
+      "actions": ["FDV_DIVERT", "ALL_PUMPS_STOP", "STEAM_CLOSE"],
+      "python_rule": "TRIP_REGENERATOR_LEAK",
+      "st_marker": "TRACE:TRIP_REGENERATOR_LEAK"
+    },
+    {
+      "cause_id": "DIVERT_LOW_TEMPERATURE",
+      "input_name": "low_temperature",
+      "predicate": "TRUE",
+      "classification": "DIVERT",
+      "latching": false,
+      "effect_state": "RECIRCULATE",
+      "actions": ["FDV_DIVERT"],
+      "python_rule": "DIVERT_LOW_TEMPERATURE",
+      "st_marker": "TRACE:DIVERT_LOW_TEMPERATURE"
+    },
+    {
+      "cause_id": "DIVERT_LOW_HOLDING_TIME",
+      "input_name": "low_holding_time",
+      "predicate": "TRUE",
+      "classification": "DIVERT",
+      "latching": false,
+      "effect_state": "RECIRCULATE",
+      "actions": ["FDV_DIVERT"],
+      "python_rule": "DIVERT_LOW_HOLDING_TIME",
+      "st_marker": "TRACE:DIVERT_LOW_HOLDING_TIME"
+    },
+    {
+      "cause_id": "DIVERT_HIGH_FLOW",
+      "input_name": "high_flow",
+      "predicate": "TRUE",
+      "classification": "DIVERT",
+      "latching": false,
+      "effect_state": "RECIRCULATE",
+      "actions": ["FDV_DIVERT"],
+      "python_rule": "DIVERT_HIGH_FLOW",
+      "st_marker": "TRACE:DIVERT_HIGH_FLOW"
+    },
+    {
+      "cause_id": "DIVERT_LOW_DIFFERENTIAL_PRESSURE",
+      "input_name": "low_differential_pressure",
+      "predicate": "TRUE",
+      "classification": "DIVERT",
+      "latching": false,
+      "effect_state": "RECIRCULATE",
+      "actions": ["FDV_DIVERT"],
+      "python_rule": "DIVERT_LOW_DIFFERENTIAL_PRESSURE",
+      "st_marker": "TRACE:DIVERT_LOW_DIFFERENTIAL_PRESSURE"
+    },
+    {
+      "cause_id": "DIVERT_SENSOR_DISAGREEMENT",
+      "input_name": "sensor_disagreement",
+      "predicate": "TRUE",
+      "classification": "DIVERT",
+      "latching": false,
+      "effect_state": "RECIRCULATE",
+      "actions": ["FDV_DIVERT"],
+      "python_rule": "DIVERT_SENSOR_DISAGREEMENT",
+      "st_marker": "TRACE:DIVERT_SENSOR_DISAGREEMENT"
+    },
+    {
+      "cause_id": "DIVERT_CIP_ACTIVE",
+      "input_name": "cip_active",
+      "predicate": "TRUE",
+      "classification": "DIVERT",
+      "latching": false,
+      "effect_state": "CIP",
+      "actions": ["FDV_DIVERT"],
+      "python_rule": "DIVERT_CIP_ACTIVE",
+      "st_marker": "TRACE:DIVERT_CIP_ACTIVE"
+    },
+    {
+      "cause_id": "DIVERT_CIP_NOT_RELEASED",
+      "input_name": "cip_release_permissive",
+      "predicate": "FALSE",
+      "classification": "DIVERT",
+      "latching": false,
+      "effect_state": "RECIRCULATE",
+      "actions": ["FDV_DIVERT", "TRANSITION_DRAIN"],
+      "python_rule": "DIVERT_CIP_NOT_RELEASED",
+      "st_marker": "TRACE:DIVERT_CIP_NOT_RELEASED"
+    }
+  ]
+}
