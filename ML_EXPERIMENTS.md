@@ -1,10 +1,10 @@
 # HTST 시뮬레이터 기반 ML 실험 설계
 
-> 문서 상태: D1과 D3 데이터·감사·기준선 파이프라인 및 축소 smoke 완료, v3 비바이오 통합 ML 실험 구성 완료, 정규 benchmark 미실행
+> 문서 상태: D1-pilot·D2-ood-dev 생성/분할/감사/cache 완료, FlowTwin benchmark protocol `0.2.0`·16-variant registry 구현, 별도 v0.3 W96·1-seed opened-D2 post-hoc 개발 평가 완료; 확정 결과는 우월성·confirmatory 근거에서 제외
 > 적용 대상: HTST 공정 코어 `2.2.0` + 비바이오 통합 실행기 `3.0.0`
-> D1 ML 계약 버전: `2.2.0` / D3 계약 버전: `1.1.0`
+> D1 ML 계약 버전: `2.2.0` / FlowTwin protocol: `0.2.0` / runner: `0.3.0` / cache materialization: `0.3.0` / D3 계약 버전: `1.1.0`
 > 최근 갱신: 2026-07-27 (KST)
-> 범위: 합성 시뮬레이션 데이터의 연구 설계와 stdlib 기반 D1/D3 생성·분할·누수감사·기준선. 바이오 target과 실제 공장·규제 적합성 검증은 포함하지 않는다.
+> 범위: 합성 시뮬레이션 데이터의 연구 설계와 stdlib 기반 D1/D2/D3 생성·분할·누수감사·기준선. 바이오 target과 실제 공장·규제 적합성 검증은 포함하지 않는다.
 
 ## 1. 목적과 판정 경계
 
@@ -167,6 +167,7 @@ v2의 호환 별칭 `sensor_bias_high`는 `control_sensor_bias_high`와 같은 c
 |---|---|---:|---|
 | `D0-smoke` | 20 canonical class × 1회 × 1,800초 / 0.5초 | 72,000행 | 스키마·결정성·label audit만 |
 | `D1-pilot` | 12 profiles × 20 canonical class × 5 seeds × 1,800초 | 1,200 episodes, 약 432만 행 | 파이프라인·베이스라인 개발 |
+| `D2-ood-dev` | ID 12 + OOD 4 profiles × 20 classes × 3 replicates × 900초 | 960 episodes, 172.8만 행 | 검증된 synthetic profile-support-shift 실행 개발 |
 | `D2-benchmark` | 80 profiles × 20 canonical class × 최소 5 seeds | 최소 8,000 episodes, 약 2,880만 행 | 공식 ID/OOD 비교 |
 | `D3-RUL` | 80 profiles × profile당 10 trajectories, acceleration/censor 표본 | 800 장기에피소드 | 구현된 건강도·RUL 파이프라인의 정규 규모 |
 | `D4-control` | 초기상태·외란·profile 조합 최소 10,000 episodes | rollout 기반 | 제어 최적화 독립 평가 |
@@ -255,6 +256,8 @@ service interval 전체와 같은 asset/config/seed family는 한 split에만 �
 
 `D2-benchmark`의 profile을 생성 전에 고정한다.
 
+아래 80-profile 표는 여전히 prospective external-confirmatory 후보 설계이며, 현재 생성된 `D2-ood-dev`와 같은 데이터셋이 아니다. `D2-ood-dev`는 train-ID 7 profiles/420 episodes, validation-ID 2/120, test-ID 3/180, test-OOD-profile 4/240의 작은 개발 set이다.
+
 | split | profile | 용도 |
 |---|---:|---|
 | train-ID | 48 | 모델 적합 |
@@ -286,10 +289,46 @@ service interval 전체와 같은 asset/config/seed family는 한 split에만 �
 - 결측과 sensor dropout은 0으로 채우기 전에 missingness mask와 time-since-last-observation을 함께 준다.
 - 표준화는 profile별 전체 통계를 쓰지 않고 train 전역 또는 과거 시점의 running 통계만 쓴다.
 - class weighting, focal loss, balanced sampler를 비교하되 자연 발생률을 보존한 test에서 평가한다.
-- 모든 모델은 최소 5개 학습 seed로 반복한다.
+- 일반 후속 모델은 최소 5개 학습 seed를 권고하되, 이미 동결된 FlowTwin v0.2 matrix는 예외적으로 등록 3 seeds를 정확히 사용한다.
 - 주 결과는 seed 평균과 95% profile-cluster bootstrap CI를 보고한다.
 - 두 모델 비교는 동일 episode의 paired 결과로 하고, 평균 timestamp 정확도로 유의성을 부풀리지 않는다.
 - threshold는 validation에서 고정한 뒤 test에서 변경하지 않는다.
+
+### 7.1 FlowTwin benchmark v0.2 고정 프로토콜
+
+위 원칙은 전체 ML roadmap의 넓은 권고이고, 현재 구현된 FlowTwin benchmark의 정확한 계약은 `flowtwin_benchmark_contract.json` `0.2.0`이다.
+
+- 등록 행렬: FlowTwin-Guard 1 + neural baseline 6 + ablation 9 = **16 variants**; seeds `20260727`, `20260728`, `20260729`.
+- 여섯 baseline: `tcn`, `causal_transformer`, `static_pid_gnn`, `dynamic_gnn`, `twin_residual_tcn`, `dspr_diagnostic_adaptation`.
+- DSPR은 physics-residual dual stream, physics-guided dynamic graph, adaptive causal window를 담은 가장 가까운 선행연구 비교군이다. 저자 구현이 공개되지 않은 상태에서 forecasting 식을 six-output causal diagnosis로 독립 변환한 **diagnostic adaptation**이며 exact author-code reproduction이 아니다.
+- 모든 supervised/transport/counterfactual loss와 exhaustive evaluation은 `valid_mask & eval_mask`를 쓴다. `valid_mask`는 causal context/padding, `eval_mask`는 중첩 window에서 한 row의 owning loss region이다.
+- Event-aware sampler의 onset/middle/end landmark는 반드시 그 window의 owning `eval_mask` loss region에 속한다. Non-`N00` target-bearing train episode가 하나라도 target row를 loss에 남기지 못하면 preflight가 실행을 거부한다.
+- Conformal calibration은 validation-ID의 **counterfactual group × observable production/CIP mode** block별 true-class nonconformity/ID energy 최대값을 쓴다. D1 validation은 profile 2개이므로 `COV`는 empirical synthetic row coverage로만 보고하며 profile shift coverage guarantee는 금지한다.
+- 추론 단위는 `plant_profile_id`, seed는 technical repeat이다. `test_id` 20-class macro-F1, combined-test event F1/recall, false-alarm onset/negative-hour, unsafe-forward L를 보고한다.
+- 등록 latency endpoint는 miss에 observable effect에서 event 종료까지의 남은 horizon을 부여한 **mean horizon-penalized latency**이며 event recall·miss count와 항상 같이 보고한다.
+- Tier는 `development`, `pilot`, `protocol_complete_synthetic`이다. 최상위 label조차 합성 ID/OOD 프로토콜 완료만을 뜻하며, runner는 external-confirmatory·현장·HACCP 판정을 절대 부여하지 않는다.
+
+### 7.2 FlowTwin v0.3 post-hoc 개발 후보 계약
+
+`flowtwin_hybrid_v03_dev`는 `flowtwin_v03_candidate_contract.json` `0.1.0`으로 관리하는 별도 후보다. D2 test-ID/OOD를 후보 동결 전에 이미 확인했으므로 `d2_test_seen_before_freeze=true`, `status=development_only`이며, 후보가 포함된 run은 조건과 무관하게 `development`다. 이 row는 v0.2의 **16 variants registry를 변경하지 않는다**. `all`·`models`·`ablations` alias도 후보를 포함하지 않고, 후보의 전체 ID를 명시해야만 선택된다.
+
+후보 구조는 causal TCN과 persistence-skip nominal observer residual을 병렬로 만들고, 관측 route와 profile별 volume/실측 flow의 `V/Q` delay를 쓰는 graph branch를 통과시킨 뒤 pointwise sigmoid convex gate로 융합한다. `TargetContract.code_is_fault` mask에서 fault/non-fault class partition을 직렬화하고 binary fault probability와 두 conditional class distribution을 조합하므로 `sum(P(fault classes)) = P(anomaly)`가 정확히 유지된다. OOD score는 `log1p(mean normalized observer residual²) + log1p(route-active transport error)`인 physical nonconformity이며 v0.2 energy와 수치 비교하지 않는다.
+
+W96은 D2를 본 뒤 선택한 post-hoc 설계값이다. Train-only critical-delay gate는 `valid_mask & eval_mask & flow>1 & observable route gate>0` 행에서 `local index - V/Q/dt >= 0`인 비율을 edge별로 계산한다.
+
+| exact-FIFO edge | exhaustive coverage (valid/eligible) | sampled-train coverage (valid/eligible) |
+|---|---:|---:|
+| `L-005` | 0.9783254115 (695,290/710,694) | 0.9092718898 (154,378/169,782) |
+| `L-007` | 0.9980075813 (709,278/710,694) | 0.9916598933 (168,366/169,782) |
+| `L-008` | 0.9982100432 (461,753/462,581) | 0.9921487564 (104,633/105,461) |
+| `L-009` | 0.9979765706 (461,645/462,581) | 0.9911246812 (104,525/105,461) |
+| `L-010` | 0.9980154827 (461,663/462,581) | 0.9912953604 (104,543/105,461) |
+
+판정은 pooled 값이 아니라 edge별 최솟값을 쓰며 exhaustive `≥0.95`, sampled `≥0.90`을 요구한다. 감사 중 연 split은 `train_id`뿐이고 non-train row는 0개다. W64의 사후 확인 최소값은 각각 `0.851460685`, `0.786727010`이었고 W96 선택 근거와 함께 공개한다. 분모가 0인 edge 또는 기준 미달 edge가 있으면 학습 전에 실패한다.
+
+확률 교정은 validation-ID에서만 binary-fault temperature와 fault/non-fault conditional temperature를 적합해 hierarchy를 보존한 뒤 기존 block-max conformal로 이어진다. Candidate contract의 같은 hysteresis·persistence·cooldown grid와 profile별 제약은 후보 run에서 선택한 **모든 variant**에 적용한다. 각 variant는 자기 validation score에서 운전점을 선택하므로 선택 config는 다를 수 있으나 탐색공간·목표·제약은 같다. 운전점이 없으면 `no_operating_point`로 test iterator 생성 전에 실패하며 point-threshold fallback은 금지한다.
+
+기존 point-threshold 결과는 `event_detection`·`false_alarms`·`unsafe_forward_l_before_first_post_effect_alarm`에 보존하고, 상태기계 경보는 별도 `operational_*` endpoint로 보고한다. 따라서 후처리가 기존 point-threshold 지표를 대체하거나 숨기지 않는다. 확정된 개발 결과에서 TCN은 operational grid `0/75`로 fail-closed됐고, Hybrid은 ID macro-F1은 가장 높았지만 전체·OOD·operational 전반에서 우월하지 않았다. D2 결과는 synthetic post-hoc 개발 증거이며 성능 우월성·external-OOD·confirmatory·현장·살균·HACCP·제품안전·출하권한 근거가 될 수 없다. 논문 가설 판정에는 설계에 쓰이지 않은 새 profile set의 독립 봉인 평가가 필요하다.
 
 ## 8. 기준선과 모델군
 
@@ -335,7 +374,9 @@ service interval 전체와 같은 asset/config/seed family는 한 split에만 �
 - unsafe product volume before first alarm
 - start/stop/CIP 구간의 mode별 false alarm rate
 
-경보는 3초 중 2초 이상 threshold를 넘는 등 persistence rule을 적용한 최종 이벤트로 평가하며, raw point probability와 혼동하지 않는다.
+경보는 3초 중 2초 이상 threshold를 넘는 등 persistence rule을 적용한 최종 이벤트로 평가하며, point probability와 혼동하지 않는다.
+
+FlowTwin v0.2 등록 latency는 성공한 event의 delay 분포만으로 판정하지 않고, miss에 남은 observable-event horizon을 부여한 mean horizon-penalized latency를 사용한다. 성공-event median/p90은 보조 기술통계이며 event recall·miss count없이 단독 인용하지 않는다.
 
 ### 9.2 회귀·soft sensor·forecast
 
@@ -550,7 +591,7 @@ ablation은 한 번에 한 축을 바꾸고 동일 split·seed를 사용한다. 
 
 1. 데이터·split·라벨 manifest와 체크섬이 재현된다.
 2. test window, profile, seed, counterfactual pair 누수가 0건이다.
-3. 모든 결과가 5 seeds와 profile-cluster 95% CI를 포함한다.
+3. 후속 일반 실험은 5 seeds, FlowTwin v0.2는 등록 3 seeds 전부와 profile-cluster 95% CI를 포함한다.
 4. 안전관련 지표는 평균뿐 아니라 class별·profile별 worst case를 공개한다.
 5. ML safety 판정은 deterministic rule보다 false-safe를 늘리지 않는다.
 6. OOD 또는 낮은 confidence에서 보수적 fallback이 작동한다.
@@ -586,23 +627,25 @@ ablation:
 
 ## 15. 바로 실행할 첫 묶음
 
-v2.2 구현 직후의 우선 실행 묶음은 다음과 같다.
+2026-07-27 기준 우선 실행 묶음의 현재 상태는 다음과 같다.
 
-1. `EXP-HTST-ML-000`: **축소 smoke 완료**. 신규 신호의 스키마·정답분리·결정성·profile split 감사
-2. `D1-pilot` 생성: **미실행**. 12 profile, 20 canonical class, mode-matched counterfactual, 무작위 onset/severity, profile당 5 counterfactual seed
-3. `EXP-HTST-ML-001`: **축소 smoke 완료, 정규 결과 미고정**. 안전 규칙과 EWMA/CUSUM 기준선 실행 경로 확인
-4. `D3-RUL`: **축소 smoke 완료, 정규 결과 미고정**. EOL persistence, right-censor, profile/OOD split, train-only 건강도·RUL 기준선 확인
+1. `EXP-HTST-ML-000` / `D1-pilot`: **완료**. 12 profiles, 60 counterfactual groups, 1,200 episodes, signal/label 각 4,320,000 rows를 생성했고 train 7 / validation 2 / test 3 profile split과 누수·계약 감사 30/30을 통과했다.
+2. `EXP-HTST-ML-001`: **D1 전체 기준선 실행 완료**. Rule/EWMA/CUSUM이 4,320,000 score rows를 처리했고 validation-only threshold·test-ID event/false-alarm/unsafe-volume artifact를 고정했다.
+3. `D2-ood-dev`: **생성·split·감사·cache v0.3 완료**. ID 12/OOD 4 profiles, 48 groups, 960 episodes, 1,728,000 rows; `OOD_LOW_FLOW`/`OOD_HIGH_FLOW_WARM_FEED`; profile hash·33-parameter range·strict support-gap 포함 30/30 pass.
+4. FlowTwin benchmark v0.2: **코드·계약 구현 완료, 16-variant×3-seed full matrix 결과는 이 문서의 근거에서 제외**. Cache v0.3, mask/loss ownership, event-aware sampler, six baselines, nine ablations, block conformal, profile metrics/bootstrap, tier firewall을 구현했다.
+5. FlowTwin v0.3 후보: **구현·W96/1-seed opened-D2 post-hoc 평가·TCN validation-only alarm 감사 완료**. 네 모델 diagnostic을 고정했고, operational gate는 Hybrid/FlowTwin/DSPR만 통과했으며 TCN은 `0/75`로 실패했다. v0.2 registry에는 추가하지 않았다.
+6. `D3-RUL`: **축소 smoke 완료, 정규 결과 미고정**. EOL persistence, right-censor, profile/OOD split, train-only 건강도·RUL 기준선 확인
 
-이 우선 단계가 끝나기 전에는 딥러닝이나 RL을 시작하지 않는다. 첫 연구 결과는 복잡한 모델 점수가 아니라 **데이터 생성기가 고정 시나리오를 벗어나고, 정답 누수 없이 같은 실험을 재현할 수 있는지**다.
+현재 근거는 데이터·split·감사·기준선과 benchmark 소프트웨어 계약까지다. D1은 ID-only/test-ID 3 profiles이고, D2는 synthetic support-shift/test-ID 3·test-OOD 4 profiles의 이미 열린 개발 set이며 전체 neural matrix도 끝나지 않았다. 따라서 v0.3 후보를 포함해 novelty, 우월성, external-OOD, external-confirmatory 또는 현장 성능을 주장하지 않는다.
 
 ## 16. 구현된 실행 경로
 
 | 파일 | 역할 | 현재 상태 |
 |---|---|---|
 | `ml_contract.json` | canonical taxonomy, alias, 구현 여부, feature allowlist, forbidden feature 계약 | 구현 |
-| `generate_ml_dataset.py` | profile·seed·onset·duration·severity 무작위화, mode-matched counterfactual pairing, 물리/관측 effect timing, `signals`/`oracle_labels` 분리, manifest/checksum | 구현 |
-| `split_ml_dataset.py` | `plant_profile_id` 단위 결정적 60/20/20 split, OOD profile 격리 | 구현 |
-| `audit_ml_dataset.py` | checksum, schema, forbidden feature, row-key, profile/config/seed/counterfactual/window 누수 감사 | 구현 |
+| `generate_ml_dataset.py`, `ood_profile_contract.json` | profile·seed·onset·severity 무작위화, mode-matched pairs, ID + two strict-gap synthetic OOD domains, signal/oracle 분리, manifest/checksum | 구현·D1/D2 생성 |
+| `split_ml_dataset.py` | `plant_profile_id` 단위 결정적 60/20/20 ID split, 모든 non-ID profile의 `test_ood_profile` 격리 | 구현·D1/D2 split |
+| `audit_ml_dataset.py` | checksum, schema, forbidden feature, row-key, profile/config/seed/counterfactual 누수, D2 domain/hash/range/support-gap 감사 | 구현·D1/D2 30/30 pass |
 | `run_ml_baselines.py` | 허용 신호만 사용하는 rule·EWMA·CUSUM, validation threshold 고정, event recall·지연·오경보·경보 전 unsafe volume | 구현 |
 | `tests/test_ml_pipeline.py` | 생성 결정성, 20-class/alias 등가성, M01/F12 mode-matched timing, 누수 주입 검출, 기준선 산출물 회귀시험 | 구현 |
 | `d3_rul_contract.json`, `d3_rul_common.py` | 독립 생산열화 범위, H0/H1 feature, EOL·censor·split 계약 | 구현 |
@@ -614,29 +657,292 @@ v2.2 구현 직후의 우선 실행 묶음은 다음과 같다.
 | `generate_multicycle_rul_dataset.py` | v3 multi-cycle trace/event/interval/schema/manifest/checksum 생성 | 구현 |
 | `run_digital_twin.py`, `digital_twin_config.json` | 공정·교정·PLC·HACCP·lifecycle 통합 artifact 생성 | 구현 |
 | `tests/test_digital_twin.py` | v3 결정성, checksum, 증거사슬, 바이오 제외와 원자적 실패 계약 | 구현 |
+| `flowtwin_guard/graph.py` | 22-node/23-edge P&ID allowlist graph, profile별 exact FIFO overlay, observable route gate | 구현 |
+| `flowtwin_guard/data.py` | train-only scaling, `valid_mask`/owning `eval_mask`, event landmark를 loss region에 보존하는 sampler, N00/M02 counterfactual pairing | 구현 |
+| `flowtwin_guard/cache.py`, `build_flowtwin_cache.py` | v0.3 episode materialization, dataset/split/checksum/scaler와 `ml_pipeline_common.py`를 포함한 source provenance fail-closed 검증 | 구현·D1/D2 cache v0.3 생성 |
+| `flowtwin_guard/model.py` | causal nominal Observer, uncertainty residual, advective-delay/hydraulic-control dual relation, 계층 head | 구현 |
+| `flowtwin_guard/hybrid.py` | causal TCN + persistence-skip Observer residual + route-gated `V/Q` graph, sigmoid gate, taxonomy fault-mask hierarchy, physical OOD score | v0.3 개발 후보 구현 |
+| `flowtwin_guard/alarm.py` | validation-only hysteresis·assert/clear persistence·cooldown grid, profile별 false-alarm/recall 제약, fail-closed selection | 구현 |
+| `flowtwin_guard/baselines.py` | TCN, causal Transformer, static P&ID-GNN, learned dynamic GNN, Twin-residual TCN | 구현 |
+| `flowtwin_guard/dspr.py` | 가장 가까운 선행연구 DSPR의 six-output causal diagnostic adaptation; exact reproduction 금지 metadata | 구현 |
+| `flowtwin_guard/ablation.py` | `no_delay`부터 `no_status_relays`까지 등록 single-axis 9 ablations | 구현 |
+| `flowtwin_guard/conformal.py` | validation counterfactual-group/observable-mode block-max conformal prediction set와 OOD abstention | 구현 |
+| `flowtwin_guard/metrics.py` | test-ID macro-F1, one-to-one event, horizon-penalized latency, false alarm, selective/OOD 지표 | 구현 |
+| `flowtwin_benchmark_contract.json`, `run_flowtwin_benchmark.py` | v0.2 16 variants×3 seeds frozen registry 보존, train/validation/test firewall, profile-level paired bootstrap, opt-in v0.3 candidate·동일 alarm policy·point-threshold/operational endpoint 분리 | 구현; full matrix 결과 미기재 |
+| `flowtwin_v03_candidate_contract.json` | opened-D2 checksum, exact W96 budget, train-only delay gate, validation alarm과 post-hoc claim boundary 결박 | 구현·development-only |
+| `audit_flowtwin_v03_alarm.py` | 동결 TCN checkpoint의 validation-only operational-grid 재감사, test iterator 미생성·`no_operating_point` checksum 근거 | 구현·TCN `0/75` 고정 |
+| `report_flowtwin_v03_development.py` | 분리된 4-model diagnostic, validation feasibility, 조건부 3-model operational 결과의 결박·보고 | 구현; `FlowTwin-v03-D2-development-report` 재현 경로 |
+| `train_flowtwin_guard.py` | 개별 FlowTwin 파이프라인 CLI; v0.2 정식 비교는 benchmark runner를 사용 | 구현·pre-audit run 보존 |
+| `tests/test_flowtwin_guard.py`, `tests/test_flowtwin_benchmark.py`, `tests/test_flowtwin_metrics.py`, `tests/test_flowtwin_dspr.py`, `tests/test_flowtwin_hybrid.py`, `tests/test_flowtwin_alarm.py` | fractional delay·route·mask/loss·causality·DSPR·hybrid hierarchy·경보 firewall·conformal·metric·runner artifact 회귀시험 | 구현 |
 
 정규 실행 명령은 다음 순서를 고정한다. 각 출력 디렉터리는 provenance 보존을 위해 비어 있어야 한다.
 
 ```bash
 python3 generate_ml_dataset.py \
-  --output ml_datasets/D1-pilot
+  --output ml_datasets/D1-pilot \
+  --dataset-version D1-pilot \
+  --profiles 12 \
+  --ood-profiles 0 \
+  --replicates 5 \
+  --duration-s 1800 \
+  --dt-s 0.5 \
+  --seed 20260725
 
 python3 split_ml_dataset.py \
   --dataset ml_datasets/D1-pilot \
-  --output ml_datasets/D1-pilot-splits
+  --output ml_datasets/D1-pilot-splits \
+  --seed 20260725 \
+  --train-ratio 0.60 \
+  --validation-ratio 0.20
 
 python3 audit_ml_dataset.py \
   --dataset ml_datasets/D1-pilot \
-  --splits ml_datasets/D1-pilot-splits
+  --splits ml_datasets/D1-pilot-splits \
+  --report ml_results/D1-pilot-audit.json
 
 python3 run_ml_baselines.py \
   --dataset ml_datasets/D1-pilot \
   --splits ml_datasets/D1-pilot-splits \
-  --output ml_baselines/D1-pilot
+  --output ml_results/D1-pilot-rule-baselines \
+  --ewma-alpha 0.20 \
+  --cusum-drift 0.50 \
+  --quantile 0.995 \
+  --reservoir-size 200000 \
+  --seed 20260725
+
+python3.12 -m venv .venv
+.venv/bin/pip install -r requirements-ml.txt
+
+.venv/bin/python build_flowtwin_cache.py \
+  --dataset ml_datasets/D1-pilot \
+  --splits ml_datasets/D1-pilot-splits \
+  --output ml_datasets/D1-pilot-cache-v0.3 \
+  --feature-set S3-context
+
+.venv/bin/python run_flowtwin_benchmark.py \
+  --dataset ml_datasets/D1-pilot \
+  --splits ml_datasets/D1-pilot-splits \
+  --cache ml_datasets/D1-pilot-cache-v0.3 \
+  --contract flowtwin_benchmark_contract.json \
+  --output ml_results/FlowTwin-Benchmark-D1-v0.2-full \
+  --variants all \
+  --seeds 20260727 20260728 20260729 \
+  --window-size 64 \
+  --stride 32 \
+  --train-windows-per-episode 12 \
+  --batch-size 32 \
+  --observer-epochs 3 \
+  --epochs 10 \
+  --hidden-dim 32 \
+  --observer-hidden-dim 48 \
+  --layers 2 \
+  --attention-heads 4 \
+  --dropout 0.1 \
+  --learning-rate 0.001 \
+  --weight-decay 0.0001 \
+  --alpha 0.1 \
+  --ood-alpha 0.01 \
+  --device cpu \
+  --save-predictions
 ```
+
+위 D1은 ID-only이므로 전체 16개 variant×3 seeds와 frozen budget을 지켜도 tier는 `pilot`이다. `protocol_complete_synthetic`이 되려면 동일 계약에 검증된 `test_ood_profile` domain이 필요하며, 그 label도 external-confirmatory 증거는 아니다.
+
+코어 구현 경로만 빠르게 재검산할 reduced development 명령은 다음과 같다. 이는 현재 v0.3 cache provenance에서 재실행하는 명령이며, 정식 성능 결론에 쓰지 않는다.
+
+```bash
+.venv/bin/python run_flowtwin_benchmark.py \
+  --dataset ml_datasets/D1-pilot \
+  --splits ml_datasets/D1-pilot-splits \
+  --cache ml_datasets/D1-pilot-cache-v0.3 \
+  --contract flowtwin_benchmark_contract.json \
+  --output ml_results/FlowTwin-Benchmark-D1-core-dev-v0.3 \
+  --variants flowtwin_guard tcn dspr_diagnostic_adaptation \
+  --seeds 20260727 \
+  --window-size 32 \
+  --stride 32 \
+  --train-windows-per-episode 4 \
+  --batch-size 64 \
+  --observer-epochs 1 \
+  --epochs 1 \
+  --hidden-dim 16 \
+  --observer-hidden-dim 24 \
+  --layers 1 \
+  --attention-heads 4 \
+  --dropout 0.1 \
+  --learning-rate 0.001 \
+  --weight-decay 0.0001 \
+  --alpha 0.1 \
+  --ood-alpha 0.01 \
+  --device cpu
+```
+
+생성·split·감사가 완료된 D2 synthetic OOD set을 v0.3 cache로 materialize한 후, 등록 행렬을 돌리는 정확한 명령은 다음과 같다. 데이터 생성 세 명령의 산출물은 이미 존재하므로 재현을 의도하지 않는다면 다시 덮어쓰지 않는다.
+
+```bash
+python3 generate_ml_dataset.py \
+  --output ml_datasets/D2-ood-dev \
+  --dataset-version D2-ood-dev \
+  --profiles 12 \
+  --ood-profiles 4 \
+  --ood-contract ood_profile_contract.json \
+  --replicates 3 \
+  --duration-s 900 \
+  --dt-s 0.5 \
+  --seed 20260731
+
+python3 split_ml_dataset.py \
+  --dataset ml_datasets/D2-ood-dev \
+  --output ml_datasets/D2-ood-dev-splits \
+  --seed 20260731 \
+  --train-ratio 0.60 \
+  --validation-ratio 0.20
+
+python3 audit_ml_dataset.py \
+  --dataset ml_datasets/D2-ood-dev \
+  --splits ml_datasets/D2-ood-dev-splits \
+  --report ml_results/D2-ood-dev-audit.json
+
+.venv/bin/python build_flowtwin_cache.py \
+  --dataset ml_datasets/D2-ood-dev \
+  --splits ml_datasets/D2-ood-dev-splits \
+  --output ml_datasets/D2-ood-dev-cache-v0.3 \
+  --feature-set S3-context
+
+.venv/bin/python run_flowtwin_benchmark.py \
+  --dataset ml_datasets/D2-ood-dev \
+  --splits ml_datasets/D2-ood-dev-splits \
+  --cache ml_datasets/D2-ood-dev-cache-v0.3 \
+  --contract flowtwin_benchmark_contract.json \
+  --output ml_results/FlowTwin-Benchmark-D2-ood-dev-v0.2-full \
+  --variants all \
+  --seeds 20260727 20260728 20260729 \
+  --window-size 64 \
+  --stride 32 \
+  --train-windows-per-episode 12 \
+  --batch-size 32 \
+  --observer-epochs 3 \
+  --epochs 10 \
+  --hidden-dim 32 \
+  --observer-hidden-dim 48 \
+  --layers 2 \
+  --attention-heads 4 \
+  --dropout 0.1 \
+  --learning-rate 0.001 \
+  --weight-decay 0.0001 \
+  --alpha 0.1 \
+  --ood-alpha 0.01 \
+  --device cpu \
+  --save-predictions
+```
+
+Domain verifier는 `profiles.csv`의 실제 33개 physical parameter로 profile config hash를 재구성하고, 모든 값이 versioned domain range에 속하며 domain 사이에 strict closed-interval support gap이 있는지 확인한다. D2 cache v0.3은 960 episodes/1,728,000 rows와 train-only 756,000 scaling rows를 checksummed source provenance와 함께 materialize했다. 위 full command가 완주해 runner가 `protocol_complete_synthetic`을 부여하더라도 synthetic protocol completion일 뿐 external-confirmatory 성능이 아니다. 이 명령은 frozen v0.2 전체 행렬의 재현 절차이며 아래 v0.3 후보 근거와 분리한다.
+
+v0.3 결과는 이미 test-ID/OOD를 열어 본 D2에서 W96·seed `20260727` 하나로 실행한 post-hoc 개발 평가다. 후보 계약은 budget과 D2 checksum을 고정한다. 후보 shard의 실제 출력은 `ml_results/FlowTwin-v03-D2-candidate-matched-dev`다.
+
+```bash
+.venv/bin/python run_flowtwin_benchmark.py \
+  --dataset ml_datasets/D2-ood-dev \
+  --splits ml_datasets/D2-ood-dev-splits \
+  --cache ml_datasets/D2-ood-dev-cache-v0.3 \
+  --contract flowtwin_benchmark_contract.json \
+  --candidate-contract flowtwin_v03_candidate_contract.json \
+  --output ml_results/FlowTwin-v03-D2-candidate-matched-dev \
+  --variants flowtwin_hybrid_v03_dev \
+  --device cpu \
+  --save-predictions
+```
+
+단일 4-model atomic run은 TCN이 validation operational grid에서 통과점을 찾지 못해 publish되지 않는 것이 정상이다. 성공한 FlowTwin/DSPR은 같은 candidate contract의 단일-variant shard로 각각 `ml_results/FlowTwin-v03-D2-flowtwin-operational-dev`, `ml_results/FlowTwin-v03-D2-dspr-operational-dev`에 보존했다. 아래 `VARIANT`/`OUTPUT`에 두 쌍을 각각 대입한다.
+
+```bash
+.venv/bin/python run_flowtwin_benchmark.py \
+  --dataset ml_datasets/D2-ood-dev \
+  --splits ml_datasets/D2-ood-dev-splits \
+  --cache ml_datasets/D2-ood-dev-cache-v0.3 \
+  --contract flowtwin_benchmark_contract.json \
+  --candidate-contract flowtwin_v03_candidate_contract.json \
+  --output OUTPUT \
+  --variants VARIANT \
+  --device cpu \
+  --save-predictions
+```
+
+TCN은 같은 W96 budget의 row/class diagnostic을 `ml_results/FlowTwin-v03-D2-tcn-raw-diagnostic-dev`에 먼저 고정한 뒤, 동결 checkpoint를 아래 validation-only 감사에 넘겼다. 감사 결과 `ml_results/FlowTwin-v03-D2-tcn-alarm-feasibility-dev`는 feasible `0/75`, `test_iterator_constructed=false`, `test_rows_seen=0`을 기록한다.
+
+```bash
+.venv/bin/python run_flowtwin_benchmark.py \
+  --dataset ml_datasets/D2-ood-dev \
+  --splits ml_datasets/D2-ood-dev-splits \
+  --cache ml_datasets/D2-ood-dev-cache-v0.3 \
+  --contract flowtwin_benchmark_contract.json \
+  --output ml_results/FlowTwin-v03-D2-tcn-raw-diagnostic-dev \
+  --variants tcn --seeds 20260727 \
+  --window-size 96 --stride 32 --train-windows-per-episode 12 \
+  --batch-size 32 --observer-epochs 3 --epochs 10 \
+  --hidden-dim 32 --observer-hidden-dim 48 --layers 2 \
+  --attention-heads 4 --dropout 0.1 --learning-rate 0.001 \
+  --weight-decay 0.0001 --alpha 0.1 --ood-alpha 0.01 \
+  --device cpu --save-predictions
+
+.venv/bin/python audit_flowtwin_v03_alarm.py \
+  --raw-result ml_results/FlowTwin-v03-D2-tcn-raw-diagnostic-dev \
+  --dataset ml_datasets/D2-ood-dev \
+  --splits ml_datasets/D2-ood-dev-splits \
+  --cache ml_datasets/D2-ood-dev-cache-v0.3 \
+  --output ml_results/FlowTwin-v03-D2-tcn-alarm-feasibility-dev \
+  --benchmark-contract flowtwin_benchmark_contract.json \
+  --candidate-contract flowtwin_v03_candidate_contract.json
+```
+
+다음 diagnostic 표의 event·FA·unsafe는 validation-fitted row threshold를 쓴 **state-machine 적용 전** combined test 결과다. `전체` macro-F1은 ID/OOD row를 합친 descriptive pooled 값이지 추론 단위가 아니다.
+
+| 모델 | parameter | 전체 / ID / OOD macro-F1 | validation-fitted row event-F1 / recall | row-threshold FA h⁻¹ | row-threshold unsafe L | OOD AUROC / FPR95 |
+|---|---:|---:|---:|---:|---:|---:|
+| FlowTwin-Hybrid v0.3 | 58,315 | 0.56218 / **0.68129** / 0.53188 | 0.03452 / 0.92529 | 186.51 | 414.37 | 0.55268 / 0.91749 |
+| FlowTwin-Guard | 42,508 | 0.42491 / 0.55566 / 0.37698 | 0.02686 / 0.92816 | 245.83 | 0.00 | **0.76773** / 0.93618 |
+| TCN | 15,379 | 0.58313 / 0.64073 / 0.54890 | 0.02222 / 0.91667 | 285.31 | 56.31 | 0.45451 / 0.98143 |
+| DSPR adaptation | 54,166 | **0.59399** / 0.61125 / **0.58642** | **0.31215** / 0.80460 | **5.24** | 4,081.49 | 0.57475 / 0.93870 |
+
+| 모델 | validation 유효/전체 | 선택 on/off/assert | validation event-F1 / recall | 최소 profile recall | 최대 profile FA h⁻¹ |
+|---|---:|---:|---:|---:|---:|
+| FlowTwin-Hybrid v0.3 | 4/75 | 0.70/0.20/5 s | 0.88889/0.80808 | 0.79167 | 3.40089 |
+| FlowTwin-Guard | 4/75 | 0.50/0.10/5 s | 0.89583/0.86869 | 0.79167 | 4.29159 |
+| TCN | **0/75** | — | — | — | — |
+| DSPR adaptation | 8/75 | 0.70/0.05/2 s | 0.89362/0.84848 | 0.79167 | 3.88673 |
+
+Operational test와의 교차는 **validation gate를 통과한 세 모델에만 조건부**로 보고한다.
+
+| 모델 | 전체 / ID / OOD event-F1 | 전체 recall | 전체 / ID / OOD FA h⁻¹ | 전체 / ID / OOD unsafe L |
+|---|---:|---:|---:|---:|
+| FlowTwin-Hybrid v0.3 | 0.87690 / **0.90775** / 0.85841 | 0.91092 | 5.744 / 3.164 / 7.722 | 436.18 / 436.18 / 0.00 |
+| FlowTwin-Guard | **0.90040** / 0.88462 / **0.91156** | **0.97414** | 7.770 / 6.710 / 8.582 | **10.51** / 10.51 / 0.00 |
+| DSPR adaptation | 0.88438 / 0.86923 / 0.89474 | 0.81322 | **3.276** / **2.883** / **3.577** | 3,674.27 / 2,118.45 / 1,555.83 |
+
+Hybrid은 ID macro-F1만 1위이고 전체/OOD macro-F1, row-threshold event-F1, operational 전체/OOD event-F1 전반에서 우월하지 않다. Validation 최대 profile FA `3.40/4.29 h⁻¹`를 통과한 Hybrid/FlowTwin의 test-profile 최댓값은 `9.42/9.09 h⁻¹`로 증가해 FA 제약이 일반화되지 않았다. DSPR은 test-profile 최댓값 `4.18 h⁻¹`과 가장 낮은 pooled FA를 유지했지만 recall `0.81322`, unsafe `3,674.27 L`를 동반했다. `F05` recall은 전 모델 `0`, Hybrid `F09` recall도 `0`이며, 네 모델의 conformal `DIAGNOSE`는 모두 `0`이다. 병렬 CPU 경합 때문에 wall time/throughput은 모델 효율 비교에 쓰지 않고 parameter count만 보고한다.
+
+표준 보고서는 다음처럼 재현한다.
+
+```bash
+.venv/bin/python report_flowtwin_v03_development.py \
+  --candidate ml_results/FlowTwin-v03-D2-candidate-matched-dev \
+  --flowtwin ml_results/FlowTwin-v03-D2-flowtwin-operational-dev \
+  --tcn ml_results/FlowTwin-v03-D2-tcn-raw-diagnostic-dev \
+  --dspr ml_results/FlowTwin-v03-D2-dspr-operational-dev \
+  --tcn-alarm-audit ml_results/FlowTwin-v03-D2-tcn-alarm-feasibility-dev \
+  --output ml_results/FlowTwin-v03-D2-development-report
+```
+
+이 산출물은 우월성·external-OOD·confirmatory 근거가 아니다.
+
+`ml_results/FlowTwin-Benchmark-D2-core-budget-v0.2/`의 부분집합 실행은 frozen 비시드 budget을 그대로 쓰되 FlowTwin/TCN/DSPR와 seed `20260727`만 선택했다. 따라서 tier는 `development`다. 전체 macro-F1은 `0.44545/0.56266/0.58609`, OOD AUROC는 `0.81138/0.41887/0.58005`, event-F1은 `0.01872/0.03626/0.25665`, false-alarm onset은 `347.85/169.85/3.09 h⁻¹`였다. FlowTwin은 OOD AUROC가 가장 높았지만 FPR95 `0.95059`, class/event 열세와 가장 많은 오경보를 동반했다. DSPR은 class/event와 오경보에서 가장 좋았지만 경보 전 unsafe volume이 `6,004.27 L`로 FlowTwin `150.30 L`보다 컸다. 세 모델 모두 singleton `DIAGNOSE=0`이며 평균 conformal set은 10.34–12.60 classes다. 어느 모델도 현재 합격 또는 우월성 결과로 판정하지 않는다.
 
 `signals.csv`에는 조인·평가용 context와 `S3-context` allowlist만 저장된다. `plant_mode`는 context이지 기본 feature가 아니며, 기준선은 대신 `cip_cycle_active`로 gating한다. 실제 `sensor_available`·`power_available`·밸브 고장계수·세정효율·FDV 내부 위치·balance-tank moment·CIP soil·shadow-HX state·`alarm_count`·`alarm_unsafe_forward`·실제 `differential_pressure_bar`가 들어오면 감사와 기준선 실행이 모두 실패해야 한다. 관측 가능하다고 계약한 온도·유량·압력·CIP conductivity/pH 센서, 상태 relay, `fdv_position_feedback`, command, position error만 입력으로 허용한다. `oracle_labels.csv`는 학습 입력 파일이 아니며, 평가 시 `(episode_id, time_start_s, time_s)`로만 결합한다.
 
-2026-07-25에 재생성한 v2.2 D1 축소 산출물은 기존 경로명을 유지한 `ml_results/D1-v2-smoke/`에 있다. 4 profiles × 20 canonical class × 1 replicate × 120초(`dt=0.5초`)로 실행해 4개 counterfactual group, 80 episodes, `signals`/`oracle_labels` 각 19,200행을 생성했다. Profile split은 train 40 / validation 20 / test 20 episodes다. 누수·계약 감사 **30/30**은 실패 0건이었고 rule·EWMA·CUSUM 세 경로가 전 19,200행을 처리해 240 episode-method 평가행을 만들었다. 정상 4 episodes와 짧은 trace의 `F11` 한 건은 episode 종료 전에 평가 가능한 고장 관측효과가 없어 `detection_eligible=0`으로 보존하고 지연 평가에서 제외했다. 별도 1 profile × 20 class × 1,800초 / 0.5초 = 72,000행 probe에서는 모든 고장 class가 허용 신호의 관측효과 시점을 얻었다. 이 수치는 파이프라인 smoke 결과이며 정규 `D1-pilot` 성능 결과로 해석하지 않는다.
+2026-07-25에 재생성한 v2.2 D1 축소 산출물은 기존 경로명을 유지한 `ml_results/D1-v2-smoke/`에 있다. 4 profiles × 20 canonical class × 1 replicate × 120초(`dt=0.5초`)로 실행해 4개 counterfactual group, 80 episodes, `signals`/`oracle_labels` 각 19,200행을 생성했다. Profile split은 train 40 / validation 20 / test 20 episodes다. 누수·계약 감사 **30/30**은 실패 0건이었고 rule·EWMA·CUSUM 세 경로가 전 19,200행을 처리해 240 episode-method 평가행을 만들었다. 정상 4 episodes와 짧은 trace의 `F11` 한 건은 episode 종료 전에 평가 가능한 고장 관측효과가 없어 `detection_eligible=0`으로 보존하고 지연 평가에서 제외했다. 별도 1 profile × 20 class × 1,800초 / 0.5초 = 72,000행 probe에서는 모든 고장 class가 허용 신호의 관측효과 시점을 얻었다.
+
+FlowTwin-Guard의 동일 D1 축소자료 실행은 `ml_results/FlowTwin-Guard-v0.1-balanced-smoke/`에 model/checkpoint, graph/scaler/calibration state, test prediction 4,800행, metrics, manifest와 checksum을 발행했다. 이 실행은 **코드 경로를 점검하는 legacy smoke**이며 2개 train profile, 짧은 관측구간과 20 diagnosis epochs의 결과다. Test row accuracy 0.657708, 20-class macro-F1 0.353002, anomaly F1 0.485394였다. Event recall 17/17과 detection 전 unsafe 0 L는 false-alarm steps/negative-hour 3430.697674를 동반해 합격 결과가 아니다. Nominal 90% conformal의 profile-disjoint test coverage는 0.850208, 평균 set 크기는 7.46이었고 singleton 진단은 없었다. 이 결과는 v0.2 baseline/ablation 비교에 사용하지 않는다.
+
+`ml_results/FlowTwin-Guard-D1-seed20260727/`의 D1 test-ID row accuracy `0.26423`과 nominal-90% empirical row coverage `0.64940`도 **pre-audit direct run**이다. 이후 `valid_mask & eval_mask` loss ownership, event landmark owning-region 보장, counterfactual-group/observable-mode block-max conformal, cache materialization provenance, DSPR 비교, profile 집계·tier 판정을 교정했으므로 pipeline-only로 보존하고 v0.2 성능표에서 제외한다. `ml_results/FlowTwin-Benchmark-D1-core-dev-v0.2/`는 FlowTwin/TCN/DSPR 3 variants×1 seed의 reduced `development` 경로를 완주했지만, `ml_pipeline_common.py` source provenance가 누락된 구 cache v0.2를 사용했다. 따라서 역사적 pipeline 기록으로만 남기고 현재 v0.3 cache 명령으로 재실행해야 한다. 구조와 정확한 실행계약은 [FLOWTWIN_GUARD.md](FLOWTWIN_GUARD.md)를 따른다.
 
 v2.2 D3 축소 산출물은 `d3_results/D3-RUL-v2.2-smoke/`에 있다. 6 profiles × 4 trajectories = 24 trajectories, ID 범위와 겹치지 않는 OOD profile 1개, signal/label 각 990행, EOL 13건, right-censor 11건을 포함한다. Split seed 456으로 train 12 / validation 4 / test-ID 4 / test-OOD 4 trajectories를 격리했고, 감사 **26/26**은 실패 0건이었다. 모든 기준선 파라미터는 train-ID 12 trajectories에서만 적합했으며 전체 split에 175 RUL landmark를 출력했다. 이 데이터는 acceleration 100, 최대 simulator duration 1,200초, 생성 seed 123인 재현 smoke이며, 실제 정비수명, 현장 일반화 또는 정규 D3 benchmark 결과로 해석하지 않는다. 전체 회귀시험의 최신 결과는 `python3 -m unittest discover -s tests -v`의 실행 기록을 기준으로 한다.

@@ -1,0 +1,130 @@
+{
+  "candidate_contract_version": "0.1.0",
+  "candidate_id": "flowtwin_hybrid_v03_dev",
+  "title": "FlowTwin v0.3 taxonomy-coherent TCN-physics development candidate",
+  "status": "development_only",
+  "frozen_before_this_execution": true,
+  "d2_test_seen_before_freeze": true,
+  "base_benchmark_contract": {
+    "filename": "flowtwin_benchmark_contract.json",
+    "version": "0.2.0",
+    "sha256": "97e95d816c6e848d4c194201ea0eba8979bba43f449cd3ee29ab3236c1e89562"
+  },
+  "development_dataset": {
+    "dataset_version": "D2-ood-dev",
+    "dataset_manifest_sha256": "213af31d26014bfafa216fc6421c0a317f4bb249ca251a3f425359914356f1bc",
+    "split_manifest_sha256": "9e2b8efc8fd7a2ccf4429290a53f01a258d0eb64a9c974c78b8726ed68a19705",
+    "cache_manifest_sha256": "8e5af4e97be0eb7bd65b7b9a390337f0dc55918c610c0291a0dca7cb5bb2cddc",
+    "feature_set": "S3-context",
+    "test_status": "opened development set; never eligible for confirmatory evidence"
+  },
+  "model_contract": {
+    "family": "experimental_candidate",
+    "causal_temporal_branch": "TCN",
+    "physics_branch": "persistence-skip nominal observer plus route-gated V/Q P&ID transport",
+    "fusion": "pointwise learned sigmoid convex gate",
+    "class_anomaly_hierarchy": "fault partition is serialized from TargetContract.code_is_fault; summed fault-class probability equals anomaly probability",
+    "ood_score": "log1p mean normalized observer residual squared plus log1p route-active transport error; not numerically interchangeable with v0.2 energy"
+  },
+  "training_budget": {
+    "seeds": [
+      20260727
+    ],
+    "window_size": 96,
+    "stride": 32,
+    "train_windows_per_episode": 12,
+    "training_window_sampler": "deterministic event-aware plus timeline-spanning selection using train labels only; every train episode containing a non-N00 target row must retain at least one such row",
+    "batch_size": 32,
+    "observer_epochs": 3,
+    "diagnostic_epochs": 10,
+    "hidden_dim": 32,
+    "observer_hidden_dim": 48,
+    "layers": 2,
+    "attention_heads": 4,
+    "dropout": 0.1,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "gradient_clip_norm": 5.0,
+    "class_balance": "shared exhaustive train-only population, each row counted once with eval_mask; inverse-square-root frequency, mean-normalized and clipped to [0.25,4]",
+    "optimizer": "AdamW",
+    "epoch_selection": "fixed budget; no early stopping",
+    "evaluation_windows": "exhaustive; every row exactly once through eval_mask",
+    "feature_set": "S3-context",
+    "alpha": 0.1,
+    "ood_alpha": 0.01
+  },
+  "critical_delay_gate": {
+    "fit_split": "train_id",
+    "edge_tags": [
+      "L-005",
+      "L-007",
+      "L-008",
+      "L-009",
+      "L-010"
+    ],
+    "eligible_rows": "valid_mask & eval_mask & measured_flow_l_h > 1 & observable route gate > 0",
+    "valid_rows": "eligible rows where local window index - V/Q/dt >= 0",
+    "minimum_exhaustive_per_edge_coverage": 0.95,
+    "minimum_sampled_train_per_edge_coverage": 0.9,
+    "zero_denominator_policy": "fail_closed",
+    "post_hoc_design_disclosure": {
+      "statement": "The thresholds and window 96 were selected after inspecting D2 and are development-only.",
+      "d2_train_min_edge_coverage_window_64": {
+        "exhaustive": 0.851460685,
+        "sampled_train": 0.78672701
+      },
+      "d2_train_min_edge_coverage_window_96": {
+        "exhaustive": 0.978325411,
+        "sampled_train": 0.90927189
+      }
+    }
+  },
+  "calibration": {
+    "probability_policy": "validation-only binary-fault and conditional-class temperature scaling preserving the taxonomy hierarchy",
+    "conformal_alpha": 0.1,
+    "ood_alpha": 0.01
+  },
+  "alarm_policy": {
+    "fit_split": "validation_id",
+    "apply_to": "every_selected_variant_in_candidate_run",
+    "objective": "event_f1",
+    "minimum_event_recall": 0.8,
+    "minimum_profile_event_recall": 0.5,
+    "maximum_profile_false_alarm_onsets_per_negative_hour": 5.0,
+    "on_thresholds": [
+      0.1,
+      0.2,
+      0.35,
+      0.5,
+      0.7,
+      0.85,
+      0.95
+    ],
+    "off_thresholds": [
+      0.05,
+      0.1,
+      0.2,
+      0.35
+    ],
+    "min_on_durations_s": [
+      1.0,
+      2.0,
+      5.0
+    ],
+    "min_off_durations_s": [
+      1.0
+    ],
+    "cooldowns_s": [
+      5.0
+    ],
+    "no_operating_point_policy": "fail before any test iterator is constructed"
+  },
+  "planned_comparison_variants": [
+    "flowtwin_hybrid_v03_dev",
+    "flowtwin_guard",
+    "tcn",
+    "dspr_diagnostic_adaptation"
+  ],
+  "future_confirmatory_gate": "Any paper claim requires a newly generated, independently sealed profile set whose test partition has not been inspected during model, window, alarm, or threshold design.",
+  "claim_boundary": "Synthetic development experiment only. It cannot establish field accuracy, pasteurization efficacy, HACCP conformity, safe-product status, release authorization, or superiority on unseen external data."
+}
