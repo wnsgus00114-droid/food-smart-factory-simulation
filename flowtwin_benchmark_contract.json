@@ -1,0 +1,146 @@
+{
+  "benchmark_contract_version": "0.2.0",
+  "benchmark_id": "FlowTwin-Guard-D1-protocol-complete-synthetic-v0.2",
+  "title": "FlowTwin-Guard architecture and ablation benchmark",
+  "frozen_before_test_evaluation": true,
+  "execution_tiers": {
+    "development": "Any model/ablation subset or reduced/overridden budget. Results are for pipeline debugging only.",
+    "pilot": "All registered variants at the frozen budget on an ID-only D1 dataset, or with fewer than all registered seeds. OOD endpoints are explicitly not applicable when no OOD profiles exist.",
+    "protocol_complete_synthetic": "All registered variants and seeds at the exact frozen budget, with both verified test_id and test_ood_profile partitions present. This is not field or external-data confirmation."
+  },
+  "research_question": "Does causal, uncertainty-aware, route-conditioned P&ID transport improve synthetic HTST fault diagnosis and selective reliability over matched temporal and graph baselines?",
+  "dataset_contract": {
+    "dataset_family": "D1",
+    "feature_set": "S3-context",
+    "training_split": [
+      "train_id"
+    ],
+    "observer_training_split": [
+      "train_id"
+    ],
+    "observer_training_codes": [
+      "N00",
+      "M01",
+      "M02"
+    ],
+    "calibration_split": [
+      "validation_id"
+    ],
+    "evaluation_split_prefix": "test_",
+    "test_access_policy": "Each trained checkpoint is calibrated completely on validation_id before the test iterator is opened. Test labels never select epochs, thresholds, temperatures, models, ablations, or hyperparameters.",
+    "ood_applicability_policy": "OOD metrics require both ID and held-out-profile test rows. An ID-only pilot records OOD metrics as not_applicable; it never synthesizes or relabels OOD examples.",
+    "counterfactual_policy": "Only simulator-declared, time-aligned normal/mode-matched pairs from the same profile, replicate and disturbance group are used.",
+    "oracle_input_policy": "fault modifiers, canonical labels, behavior/fault flags, safety outcomes and unsafe volume are targets or evaluation fields only; they are never model inputs"
+  },
+  "registered_models": [
+    "flowtwin_guard",
+    "tcn",
+    "causal_transformer",
+    "static_pid_gnn",
+    "dynamic_gnn",
+    "twin_residual_tcn",
+    "dspr_diagnostic_adaptation"
+  ],
+  "registered_ablations": [
+    "no_delay",
+    "fixed_nominal_delay",
+    "static_route",
+    "single_relation",
+    "raw_only",
+    "no_uncertainty",
+    "no_counterfactual_loss",
+    "no_conformal",
+    "no_status_relays"
+  ],
+  "training_budget": {
+    "seeds": [
+      20260727,
+      20260728,
+      20260729
+    ],
+    "window_size": 64,
+    "stride": 32,
+    "train_windows_per_episode": 12,
+    "training_window_sampler": "deterministic event-aware plus timeline-spanning selection using train labels only; every train episode containing a non-N00 target row must retain at least one such row",
+    "batch_size": 32,
+    "observer_epochs": 3,
+    "diagnostic_epochs": 10,
+    "hidden_dim": 32,
+    "observer_hidden_dim": 48,
+    "layers": 2,
+    "attention_heads": 4,
+    "dropout": 0.1,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "gradient_clip_norm": 5.0,
+    "class_balance": "shared exhaustive train-only population, each row counted once with eval_mask; inverse-square-root frequency, mean-normalized and clipped to [0.25,4]",
+    "optimizer": "AdamW",
+    "epoch_selection": "fixed budget; no early stopping",
+    "evaluation_windows": "exhaustive; every row exactly once through eval_mask"
+  },
+  "reference_execution": {
+    "device": "cpu",
+    "torch_num_threads": 1,
+    "deterministic_algorithms": true,
+    "accelerator_policy": "MPS or other accelerator runs are permitted only as exploratory runs and must record the actual device and environment."
+  },
+  "loss_weights": {
+    "class": 1.0,
+    "anomaly": 0.5,
+    "location": 0.25,
+    "mechanism": 0.25,
+    "counterfactual": 0.1,
+    "transport": 0.01,
+    "delay_regularization": 0.001,
+    "auxiliary": 1.0
+  },
+  "calibration": {
+    "class_temperature": "validation-only deterministic NLL grid search",
+    "anomaly_threshold": "validation-only maximum row F1 with highest-threshold tie break",
+    "conformal_alpha": 0.1,
+    "ood_alpha": 0.01,
+    "conformal_policy": "counterfactual-group/observable-mode block-max split conformal on validation_id; empirical synthetic coverage only because validation profiles are not numerous enough for a profile-shift guarantee",
+    "no_conformal_ablation_policy": "argmax class and validation-calibrated anomaly threshold only; no prediction-set or abstention claim"
+  },
+  "endpoints": {
+    "primary": [
+      "test_id class macro-F1",
+      "combined-test event F1",
+      "combined-test event recall",
+      "combined-test mean horizon-penalized detection latency in seconds (misses receive the remaining observable event horizon)",
+      "combined-test false-alarm onsets per negative hour",
+      "unsafe forward litres accumulated before first post-effect alarm"
+    ],
+    "selective": [
+      "prediction-set marginal coverage",
+      "mean prediction-set size",
+      "selective risk-coverage curve"
+    ],
+    "ood": [
+      "energy AUROC",
+      "energy AUPR",
+      "energy FPR@95%TPR"
+    ],
+    "efficiency": [
+      "trainable parameter count",
+      "training wall time",
+      "test inference rows per second"
+    ]
+  },
+  "aggregation": {
+    "inferential_unit": "plant_profile_id",
+    "technical_repeat": "deterministic training seed",
+    "summary": "Profile-level endpoints are computed separately; seed mean and sample standard deviation are secondary reproducibility summaries.",
+    "comparison": "Paired differences against full FlowTwin-Guard use common plant profiles and a deterministic hierarchical profile-cluster bootstrap; technical seeds are resampled within each sampled profile.",
+    "bootstrap_repetitions": 10000,
+    "bootstrap_seed": 20260730,
+    "multiplicity_policy": "No plant profiles are treated as independent time rows and seeds are never treated as biological/process replicates. Report all registered variants, effect directions and uncertainty intervals without cherry-picking."
+  },
+  "publication_gate": {
+    "protocol_complete_synthetic": "Only a run matching every registered model, ablation, seed and budget field and verified ID/OOD domain metadata receives the protocol_complete_synthetic label.",
+    "external_confirmatory": "Confirmatory claims additionally require immutable prospective preregistration, a profile-level power justification, a sealed independently generated or external dataset, and preferably real-plant validation; the runner never grants this label automatically.",
+    "subset_runs": "Any CLI subset or budget override is labelled exploratory in the manifest and must not be presented as the frozen benchmark.",
+    "field_validation": "Synthetic benchmark results require independent real-plant validation before operational claims."
+  },
+  "claim_boundary": "Research-only synthetic non-biological HTST benchmark. It does not establish field accuracy, pasteurization efficacy, HACCP conformity, safe-product status, or release authorization."
+}

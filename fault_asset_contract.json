@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "description": "Versioned hierarchical targets for FlowTwin-Guard. Locations are reference-P&ID assets or explicit research-only aggregate labels.",
+  "special_locations": ["SYSTEM", "OPERATING_MODE", "MULTI_ASSET", "MEASUREMENT_SYSTEM", "UTILITY"],
+  "targets": [
+    {"code": "N00", "location": "SYSTEM", "mechanism": "normal"},
+    {"code": "M01", "location": "OPERATING_MODE", "mechanism": "operating_mode"},
+    {"code": "M02", "location": "CIP-201", "mechanism": "operating_mode"},
+    {"code": "F01", "location": "HX-101-B", "mechanism": "utility_loss"},
+    {"code": "F02", "location": "P-101", "mechanism": "flow_excursion"},
+    {"code": "F03", "location": "HT-101", "mechanism": "sensor_bias"},
+    {"code": "F04", "location": "HT-101", "mechanism": "sensor_bias"},
+    {"code": "F05", "location": "MEASUREMENT_SYSTEM", "mechanism": "common_cause"},
+    {"code": "F06", "location": "MULTI_ASSET", "mechanism": "common_cause"},
+    {"code": "F07", "location": "P-102", "mechanism": "equipment_failure"},
+    {"code": "F08", "location": "HX-101-A", "mechanism": "pressure_inversion_leak"},
+    {"code": "F09", "location": "MULTI_ASSET", "mechanism": "progressive_degradation"},
+    {"code": "F10", "location": "MULTI_ASSET", "mechanism": "compound_fault"},
+    {"code": "F11", "location": "HX-101-D", "mechanism": "utility_loss"},
+    {"code": "F12", "location": "CIP-201", "mechanism": "incomplete_cleaning"},
+    {"code": "F13", "location": "UTILITY", "mechanism": "power_loss"},
+    {"code": "F14", "location": "HT-101", "mechanism": "sensor_drift"},
+    {"code": "F15", "location": "HT-101", "mechanism": "sensor_dropout"},
+    {"code": "F16", "location": "FDV-101", "mechanism": "slow_actuator"},
+    {"code": "F17", "location": "FDV-101", "mechanism": "valve_leakage"}
+  ]
+}

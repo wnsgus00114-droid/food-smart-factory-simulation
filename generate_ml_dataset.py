@@ -6,8 +6,11 @@ from __future__ import annotations
 import argparse
 import bisect
 import json
+import math
 import random
+import re
 import sys
+from collections import Counter
 from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -29,8 +32,11 @@ from ml_pipeline_common import (
 from model import HTSTConfig, HTSTSimulator, MODEL_VERSION, SCENARIO_NAMES
 
 
-GENERATOR_VERSION = "2.2.0"
+GENERATOR_VERSION = "2.2.1"
 DEFAULT_OUTPUT = BASE_DIR / "ml_datasets" / "D1-pilot"
+DEFAULT_OOD_CONTRACT = BASE_DIR / "ood_profile_contract.json"
+SEMANTIC_VERSION = re.compile(r"^[1-9][0-9]*\.[0-9]+\.[0-9]+$")
+DOMAIN_NAME = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
 
 EXCLUDED_PRECOMPUTED_DIAGNOSTICS = {
     "alarm_count",
@@ -234,6 +240,18 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--dataset-version", default="D1-pilot")
     parser.add_argument("--profiles", type=int, default=12)
+    parser.add_argument(
+        "--ood-profiles",
+        type=int,
+        default=0,
+        help="Additional synthetic support-shift profiles held out from ID fitting",
+    )
+    parser.add_argument(
+        "--ood-contract",
+        type=Path,
+        default=DEFAULT_OOD_CONTRACT,
+        help="Versioned synthetic OOD profile-domain contract",
+    )
     parser.add_argument("--replicates", type=int, default=5)
     parser.add_argument("--duration-s", type=float, default=1800.0)
     parser.add_argument("--dt-s", type=float, default=0.5)
@@ -249,12 +267,188 @@ def _parser() -> argparse.ArgumentParser:
 def _validate_args(args: argparse.Namespace) -> None:
     if args.profiles < 1 or args.replicates < 1:
         raise ValueError("profiles and replicates must be positive")
+    if args.ood_profiles < 0:
+        raise ValueError("ood-profiles must be nonnegative")
     if args.duration_s <= 0.0:
         raise ValueError("duration-s must be positive")
     if not 0.0 < args.dt_s <= 1.0:
         raise ValueError("dt-s must be in (0, 1]")
     if args.duration_s < 20.0:
         raise ValueError("duration-s must be at least 20 seconds")
+
+
+def _strict_json_object(path: Path) -> dict[str, Any]:
+    """Read a finite, duplicate-key-free JSON object."""
+
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"non-finite JSON constant {value!r}")
+
+    def unique_object(pairs: Sequence[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key {key!r}")
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=reject_constant,
+            object_pairs_hook=unique_object,
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Cannot read OOD profile contract {path}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise ValueError("OOD profile contract must be a JSON object")
+    return value
+
+
+def _numeric_range(value: Any, label: str) -> tuple[float, float]:
+    if not isinstance(value, list) or len(value) != 2:
+        raise ValueError(f"{label} must be a two-element JSON array")
+    if any(
+        isinstance(item, bool) or not isinstance(item, (int, float))
+        for item in value
+    ):
+        raise ValueError(f"{label} bounds must be real numbers")
+    lower, upper = map(float, value)
+    if not math.isfinite(lower) or not math.isfinite(upper) or lower >= upper:
+        raise ValueError(f"{label} must contain finite increasing bounds")
+    return lower, upper
+
+
+def _ranges_have_strict_gap(
+    left: Mapping[str, tuple[float, float]],
+    right: Mapping[str, tuple[float, float]],
+) -> bool:
+    return any(
+        left[name][1] < right[name][0] or right[name][1] < left[name][0]
+        for name in left
+    )
+
+
+def _validate_physical_range_box(
+    domain: str, ranges: Mapping[str, tuple[float, float]]
+) -> None:
+    """Fail closed on simulator constraints for the complete parameter box.
+
+    HTSTConfig has two joint constraints among sampled profile fields.  We
+    prove those at their adverse corners, then exercise every scalar endpoint
+    against the box midpoint so model-level bounds remain the source of truth.
+    """
+
+    if (
+        ranges["balance_tank_initial_volume_l"][1]
+        > ranges["balance_tank_capacity_l"][0]
+    ):
+        raise ValueError(
+            f"{domain} permits balance_tank_initial_volume_l above capacity"
+        )
+    if (
+        72.0 + ranges["forward_temperature_margin_c"][1]
+        >= ranges["pasteurization_setpoint_c"][0]
+    ):
+        raise ValueError(
+            f"{domain} permits diversion threshold plus margin at/above setpoint"
+        )
+    if ranges["nominal_holding_time_s"][0] < 15.0:
+        raise ValueError(
+            f"{domain} permits nominal holding time below the model minimum"
+        )
+
+    midpoint = {
+        name: (bounds[0] + bounds[1]) / 2.0 for name, bounds in ranges.items()
+    }
+    candidates = [
+        {name: bounds[0] for name, bounds in ranges.items()},
+        {name: bounds[1] for name, bounds in ranges.items()},
+        midpoint,
+    ]
+    for name, bounds in ranges.items():
+        for endpoint in bounds:
+            candidate = dict(midpoint)
+            candidate[name] = endpoint
+            candidates.append(candidate)
+    for candidate in candidates:
+        try:
+            HTSTConfig(**candidate, duration_s=20.0, dt_s=1.0)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"{domain} contains an HTSTConfig-invalid profile corner: {exc}"
+            ) from exc
+
+
+def _load_ood_profile_contract(
+    path: Path, id_ranges_raw: Mapping[str, Any]
+) -> tuple[dict[str, Any], dict[str, dict[str, tuple[float, float]]]]:
+    """Validate and expand the synthetic OOD contract into complete range boxes."""
+
+    contract = _strict_json_object(path)
+    required = {
+        "version",
+        "id_domain",
+        "ood_domains",
+        "generation_policy",
+        "profile_parameter_range_overrides",
+    }
+    missing = sorted(required - contract.keys())
+    if missing:
+        raise ValueError(f"OOD profile contract is missing keys: {missing}")
+    if not SEMANTIC_VERSION.fullmatch(str(contract["version"])):
+        raise ValueError("OOD profile contract version must be semantic")
+    if contract["id_domain"] != "ID":
+        raise ValueError("OOD profile contract id_domain must be exactly 'ID'")
+    if not isinstance(contract["generation_policy"], dict) or not contract[
+        "generation_policy"
+    ]:
+        raise ValueError("OOD profile contract generation_policy must be non-empty")
+
+    names = contract["ood_domains"]
+    if (
+        not isinstance(names, list)
+        or not names
+        or any(
+            not isinstance(name, str) or not DOMAIN_NAME.fullmatch(name)
+            for name in names
+        )
+        or len(names) != len(set(names))
+        or "ID" in names
+    ):
+        raise ValueError("ood_domains must contain unique non-ID uppercase domain names")
+    overrides = contract["profile_parameter_range_overrides"]
+    if not isinstance(overrides, dict) or set(overrides) != set(names):
+        raise ValueError(
+            "profile_parameter_range_overrides must define exactly every OOD domain"
+        )
+
+    id_ranges = {
+        name: _numeric_range(value, f"ID.{name}")
+        for name, value in sorted(id_ranges_raw.items())
+    }
+    expanded: dict[str, dict[str, tuple[float, float]]] = {"ID": id_ranges}
+    for domain in names:
+        domain_overrides = overrides[domain]
+        if not isinstance(domain_overrides, dict) or not domain_overrides:
+            raise ValueError(f"{domain} must override at least one profile range")
+        unknown = sorted(set(domain_overrides) - set(id_ranges))
+        if unknown:
+            raise ValueError(f"{domain} overrides unknown profile fields: {unknown}")
+        complete = dict(id_ranges)
+        for name, value in sorted(domain_overrides.items()):
+            complete[name] = _numeric_range(value, f"{domain}.{name}")
+        _validate_physical_range_box(domain, complete)
+        expanded[domain] = complete
+    _validate_physical_range_box("ID", id_ranges)
+
+    domains = ["ID", *names]
+    for left_index, left_name in enumerate(domains):
+        for right_name in domains[left_index + 1 :]:
+            if not _ranges_have_strict_gap(expanded[left_name], expanded[right_name]):
+                raise ValueError(
+                    f"Profile supports {left_name} and {right_name} are not strictly disjoint"
+                )
+    return contract, expanded
 
 
 def _prepare_output(path: Path) -> None:
@@ -283,6 +477,33 @@ def _sample_profile(
     )
     profile_hash = sha256_json(sampled)
     profile_id = f"P{profile_index:04d}-{profile_hash[:10]}"
+    return profile_id, seed, sampled
+
+
+def _sample_ood_profile(
+    ranges: Mapping[str, tuple[float, float]],
+    master_seed: int,
+    ood_profile_index: int,
+    global_profile_index: int,
+    domain: str,
+) -> tuple[str, int, dict[str, float]]:
+    seed = stable_seed(master_seed, "ood-profile", domain, ood_profile_index)
+    rng = random.Random(seed)
+    sampled = {
+        name: rng.uniform(float(bounds[0]), float(bounds[1]))
+        for name, bounds in sorted(ranges.items())
+    }
+    # This cap is normally inactive for the validated contract, but keeps the
+    # same fail-safe numerical guard used by legacy ID sampling.
+    sampled["forward_temperature_margin_c"] = min(
+        sampled["forward_temperature_margin_c"],
+        sampled["pasteurization_setpoint_c"] - 72.0 - 0.05,
+    )
+    HTSTConfig(**sampled, duration_s=20.0, dt_s=1.0)
+    profile_hash = sha256_json(sampled)
+    profile_id = (
+        f"P{global_profile_index:04d}-{domain}-{profile_hash[:10]}"
+    )
     return profile_id, seed, sampled
 
 
@@ -543,6 +764,15 @@ def _schema(
             return "excluded_precomputed_diagnostic"
         return "oracle_label"
 
+    def profile_role(field: str) -> str:
+        if field == "plant_profile_id":
+            return "identity"
+        if field == "domain":
+            return "domain"
+        if field in {"profile_index", "profile_seed", "profile_config_hash"}:
+            return "metadata"
+        return "parameter"
+
     return {
         "schema_version": "2.2.0",
         "primary_key": ["episode_id", "time_s"],
@@ -567,10 +797,7 @@ def _schema(
             },
             "profiles.csv": {
                 "primary_key": ["plant_profile_id"],
-                "fields": fields_for(
-                    "profiles.csv",
-                    lambda field: "identity" if field == "plant_profile_id" else "parameter",
-                ),
+                "fields": fields_for("profiles.csv", profile_role),
             },
         },
     }
@@ -579,6 +806,11 @@ def _schema(
 def generate(args: argparse.Namespace) -> Path:
     _validate_args(args)
     contract = load_contract()
+    ood_contract_path = Path(args.ood_contract)
+    ood_contract, domain_ranges = _load_ood_profile_contract(
+        ood_contract_path, contract["profile_parameter_ranges"]
+    )
+    configured_ood_domains = [str(name) for name in ood_contract["ood_domains"]]
     if contract["model_version"] != MODEL_VERSION:
         raise ValueError(
             f"Contract expects model {contract['model_version']}, found {MODEL_VERSION}"
@@ -636,6 +868,7 @@ def generate(args: argparse.Namespace) -> Path:
         "profile_index",
         "profile_seed",
         "profile_config_hash",
+        "domain",
         *profile_parameter_names,
     ]
     episode_fields = [
@@ -680,6 +913,8 @@ def generate(args: argparse.Namespace) -> Path:
     label_path = args.output / "oracle_labels.csv"
     profile_count = episode_count = signal_count = label_count = 0
     detection_eligible_episode_count = 0
+    profile_counts_by_domain: Counter[str] = Counter()
+    episode_counts_by_domain: Counter[str] = Counter()
     table_fields = {
         "profiles.csv": profile_fields,
         "episodes.csv": episode_fields,
@@ -714,21 +949,50 @@ def generate(args: argparse.Namespace) -> Path:
         signal_writer = write_csv_header(signal_handle, signal_fields)
         label_writer = write_csv_header(label_handle, label_fields)
 
+        profile_specs: list[
+            tuple[int, str, str, int, dict[str, float]]
+        ] = []
         for profile_index in range(args.profiles):
             profile_id, profile_seed, profile_values = _sample_profile(
                 contract, args.seed, profile_index
             )
+            profile_specs.append(
+                (profile_index, "ID", profile_id, profile_seed, profile_values)
+            )
+        for ood_index in range(args.ood_profiles):
+            domain = configured_ood_domains[ood_index % len(configured_ood_domains)]
+            profile_index = args.profiles + ood_index
+            profile_id, profile_seed, profile_values = _sample_ood_profile(
+                domain_ranges[domain],
+                args.seed,
+                ood_index,
+                profile_index,
+                domain,
+            )
+            profile_specs.append(
+                (profile_index, domain, profile_id, profile_seed, profile_values)
+            )
+
+        for (
+            profile_index,
+            domain,
+            profile_id,
+            profile_seed,
+            profile_values,
+        ) in profile_specs:
             profile_hash = sha256_json(profile_values)
             profile_row = {
                 "plant_profile_id": profile_id,
                 "profile_index": profile_index,
                 "profile_seed": profile_seed,
                 "profile_config_hash": profile_hash,
+                "domain": domain,
                 **profile_values,
             }
             observe_schema_row("profiles.csv", profile_row)
             profile_writer.writerow(profile_row)
             profile_count += 1
+            profile_counts_by_domain[domain] += 1
 
             for replicate in range(args.replicates):
                 sampling_seed, noise_seed, onset_s, fault_duration_s, severity = (
@@ -882,7 +1146,7 @@ def generate(args: argparse.Namespace) -> Path:
                             "plant_profile_id": profile_id,
                             "counterfactual_group_id": group_id,
                             "dataset_version": args.dataset_version,
-                            "domain": "ID",
+                            "domain": domain,
                             "canonical_code": item["code"],
                             "canonical_scenario": item["canonical_scenario"],
                             "simulator_scenario": simulator_scenario,
@@ -943,6 +1207,7 @@ def generate(args: argparse.Namespace) -> Path:
                     observe_schema_row("episodes.csv", episode_row)
                     episode_writer.writerow(episode_row)
                     episode_count += 1
+                    episode_counts_by_domain[domain] += 1
                     detection_eligible_episode_count += int(detection_eligible)
 
     if signal_count != label_count or signal_count == 0:
@@ -962,6 +1227,34 @@ def generate(args: argparse.Namespace) -> Path:
         }
         for item in selected
     ]
+    observed_ood_domains = [
+        domain
+        for domain in configured_ood_domains
+        if profile_counts_by_domain[domain] > 0
+    ]
+    manifest_profile_ranges = {
+        domain: {
+            name: [float(bounds[0]), float(bounds[1])]
+            for name, bounds in sorted(domain_ranges[domain].items())
+        }
+        for domain in ["ID", *observed_ood_domains]
+    }
+    domain_contract = {
+        "version": str(ood_contract["version"]),
+        "id_domain": "ID",
+        "ood_domains": observed_ood_domains,
+        "generation_policy": {
+            **ood_contract["generation_policy"],
+            "configured_ood_domains": configured_ood_domains,
+            "active_ood_domains": observed_ood_domains,
+        },
+        "profile_parameter_ranges": manifest_profile_ranges,
+        "source_contract": {
+            "filename": ood_contract_path.name,
+            "sha256": sha256_file(ood_contract_path),
+        },
+        "synthetic_only": True,
+    }
     manifest = {
         "dataset_version": args.dataset_version,
         "generator_version": GENERATOR_VERSION,
@@ -970,6 +1263,8 @@ def generate(args: argparse.Namespace) -> Path:
         "master_seed": args.seed,
         "parameters": {
             "profiles": args.profiles,
+            "ood_profiles": args.ood_profiles,
+            "total_profiles": args.profiles + args.ood_profiles,
             "replicates": args.replicates,
             "duration_s": args.duration_s,
             "dt_s": args.dt_s,
@@ -986,8 +1281,15 @@ def generate(args: argparse.Namespace) -> Path:
         ],
         "counts": {
             "profiles": profile_count,
-            "counterfactual_groups": args.profiles * args.replicates,
+            "id_profiles": profile_counts_by_domain["ID"],
+            "ood_profiles": sum(
+                profile_counts_by_domain[domain]
+                for domain in observed_ood_domains
+            ),
+            "profiles_by_domain": dict(sorted(profile_counts_by_domain.items())),
+            "counterfactual_groups": profile_count * args.replicates,
             "episodes": episode_count,
+            "episodes_by_domain": dict(sorted(episode_counts_by_domain.items())),
             "detection_eligible_episodes": detection_eligible_episode_count,
             "non_event_or_unobserved_episodes": (
                 episode_count - detection_eligible_episode_count
@@ -999,8 +1301,10 @@ def generate(args: argparse.Namespace) -> Path:
         "model_feature_fields": features,
         "oracle_label_fields": label_fields,
         "explicitly_forbidden_signal_fields": sorted(explicit_forbidden),
+        "domain_contract": domain_contract,
         "provenance": {
             "ml_contract.json": sha256_file(CONTRACT_PATH),
+            "ood_profile_contract.json": sha256_file(ood_contract_path),
             "model.py": sha256_file(BASE_DIR / "model.py"),
             "process_components.py": sha256_file(BASE_DIR / "process_components.py"),
             "ml_pipeline_common.py": sha256_file(BASE_DIR / "ml_pipeline_common.py"),

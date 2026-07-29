@@ -1,28 +1,29 @@
-# 연속식 우유 HTST 공정 시뮬레이터 v2.2 + 비바이오 통합계층 v3
+# 연속식 우유 HTST 공정 시뮬레이터 v2.2 + 통합계층 v3
 
 > 상태: 재현 가능한 동적 **연구용 surrogate**
 > 공정 코어·기본 schema 버전: `2.2.0`
 > 비바이오 통합 실행기 버전: `3.0.0`
-> 런타임 의존성: Python 표준 라이브러리
+> FlowTwin-Guard benchmark protocol: `0.2.0` · runner: `0.3.0`
+> 시뮬레이터 런타임 의존성: Python 표준 라이브러리 · FlowTwin-Guard 선택 의존성: `requirements-ml.txt`
 > 물리·공장·규제 검증: **미수행** · 바이오 모델: **명시적 제외**
 
 이 디렉터리는 연속식 우유 HTST 공정의 기동, 생산, 회송, CIP, 센서, PI 제어, 압력차, FDV(flow-diversion valve), 오염·세정과 고장 주입을 합성 시계열로 재현한다. v3 실행기는 여기에 기계판독 P&ID, 센서 교정·불확실성, PLC shadow, HACCP 증거원장과 반복 정비/CIP 수명모델을 결합한다. 문서화한 surrogate 계약의 소프트웨어 구현은 완료돼 있지만, 특정 공장의 디지털 트윈은 아니다.
 
 `safe`, `unsafe`, 상대 열처리 지수, 오염 위험, 세정 완료와 모든 알람은 코드 안의 가정에 따른 **시뮬레이션 진단값**이다. 실제 제품 출하, CCP 설정, 설비 제어, HACCP 또는 법규 적합성 판정에 사용하면 안 된다.
 
-전체 구조, 외부자료-코드 추적, GitHub Mermaid 도면, 실행법과 ML 실험 구성은 이 README와 [SOURCES.md](SOURCES.md), [ML_EXPERIMENTS.md](ML_EXPERIMENTS.md)에 정리돼 있다. 병원체·CFU·D-value·증식·challenge-study 모델은 사용자 결정에 따라 v3 범위에서 제외했다. 코어의 과거 무차원 상대 열처리 진단값을 생물학적 결과로 해석해서는 안 된다.
+전체 구조, 외부자료-코드 추적, GitHub Mermaid 도면, 실행법과 ML 실험 구성은 이 README와 [SOURCES.md](SOURCES.md), [ML_EXPERIMENTS.md](ML_EXPERIMENTS.md)에 정리돼 있다. 새 공정전용 진단모델의 구조·loss·실행·ablation은 [FLOWTWIN_GUARD.md](FLOWTWIN_GUARD.md), 선행연구 대비 주장 경계·H1–H5·출판 게이트는 [NOVELTY_EVALUATION.md](NOVELTY_EVALUATION.md)를 따른다. Benchmark protocol `0.2.0`은 FlowTwin-Guard 1개, neural baseline 6개, ablation 9개의 **16개 variant**를 등록하며, 가장 가까운 선행연구인 DSPR을 `dspr_diagnostic_adaptation`으로 포함한다. 이 baseline은 저자 코드의 exact reproduction이 아니라 논문 식을 인과적 HTST 진단 계약에 맞춘 독립 adaptation이다. 병원체·CFU·D-value·증식·challenge-study 모델은 사용자 결정에 따라 v3 범위에서 제외했다. 코어의 과거 무차원 상대 열처리 진단값을 생물학적 결과로 해석해서는 안 된다.
 
 ## 구조 이미지
 
 ### 2D 공정·제어 구조
 
-![연속식 우유 HTST 비바이오 디지털 트윈 2D 구조](docs/images/htst-digital-twin-2d.png)
+![연속식 우유 HTST 디지털 트윈 2D 구조](docs/images/htst-digital-twin-2d.png)
 
 파란색은 제품 흐름, 주황색은 열원, 빨간색은 FDV 회송, 초록색은 CIP, 보라색 점선은 센서·PLC·HACCP·수명계층의 데이터 흐름이다.
 
 ### 3D 설비 배치 개념도
 
-![연속식 우유 HTST 비바이오 디지털 트윈 3D 구조](docs/images/htst-digital-twin-3d.png)
+![연속식 우유 HTST 디지털 트윈 3D 구조](docs/images/htst-digital-twin-3d.png)
 
 두 이미지는 코드의 참조 위상을 설명하기 위한 개념도이며 실제 공장의 배관 치수, 설치 위치 또는 as-built P&ID를 나타내지 않는다. 기계판독 가능한 상세 연결은 [reference_pid.json](reference_pid.json), 실행 시 생성되는 전체 Mermaid P&ID는 `digital_twin_results/reference_plant.md`를 따른다.
 
@@ -41,6 +42,105 @@ python3 run_digital_twin.py
 ```
 
 이 실행은 기본적으로 `digital_twin_results/`에 공정·센서·PLC·HACCP·lifecycle trace, P&ID Mermaid, schema, manifest와 checksum을 원자적으로 생성한다. 시험 개수는 구현 확장에 따라 바뀌므로 위 `unittest discover` 명령의 현재 결과를 기준으로 한다.
+
+공정전용 FlowTwin-Guard ML 환경을 만든다. 공정 simulator의 표준 라이브러리 계약은 그대로 유지되고 이 환경은 ML 실행에만 필요하다.
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/pip install -r requirements-ml.txt
+
+.venv/bin/python build_flowtwin_cache.py \
+  --dataset ml_datasets/D1-pilot \
+  --splits ml_datasets/D1-pilot-splits \
+  --output ml_datasets/D1-pilot-cache-v0.3 \
+  --feature-set S3-context
+```
+
+`D1-pilot-cache-v0.3` manifest는 dataset/split manifest와 checksum, 1,200개 episode materialization, train-only scaler, 그리고 `ml_pipeline_common.py`를 포함해 cache를 만든 전체 소스 파일의 SHA-256을 같이 묶는다. 소스가 바뀌었는데 예전 cache를 재사용하면 loader가 실행을 거부한다.
+
+등록된 16개 variant×3 seeds의 D1 ID-only full pilot은 다음과 같이 실행한다. D1에는 검증된 `test_ood_profile`이 없으므로 이 명령을 exact budget으로 끝내도 tier는 `pilot`이지 `protocol_complete_synthetic`이 아니다.
+
+```bash
+.venv/bin/python run_flowtwin_benchmark.py \
+  --dataset ml_datasets/D1-pilot \
+  --splits ml_datasets/D1-pilot-splits \
+  --cache ml_datasets/D1-pilot-cache-v0.3 \
+  --contract flowtwin_benchmark_contract.json \
+  --output ml_results/FlowTwin-Benchmark-D1-v0.2-full \
+  --variants all \
+  --seeds 20260727 20260728 20260729 \
+  --window-size 64 \
+  --stride 32 \
+  --train-windows-per-episode 12 \
+  --batch-size 32 \
+  --observer-epochs 3 \
+  --epochs 10 \
+  --hidden-dim 32 \
+  --observer-hidden-dim 48 \
+  --layers 2 \
+  --attention-heads 4 \
+  --dropout 0.1 \
+  --learning-rate 0.001 \
+  --weight-decay 0.0001 \
+  --alpha 0.1 \
+  --ood-alpha 0.01 \
+  --device cpu \
+  --save-predictions
+```
+
+먼저 코어 비교 경로만 빠르게 검사하는 reduced development run은 다음과 같다. 이 결과는 budget·variant·seed를 축소했으므로 논문 성능표에 쓸 수 없다.
+
+```bash
+.venv/bin/python run_flowtwin_benchmark.py \
+  --dataset ml_datasets/D1-pilot \
+  --splits ml_datasets/D1-pilot-splits \
+  --cache ml_datasets/D1-pilot-cache-v0.3 \
+  --contract flowtwin_benchmark_contract.json \
+  --output ml_results/FlowTwin-Benchmark-D1-core-dev-v0.3 \
+  --variants flowtwin_guard tcn dspr_diagnostic_adaptation \
+  --seeds 20260727 \
+  --window-size 32 \
+  --stride 32 \
+  --train-windows-per-episode 4 \
+  --batch-size 64 \
+  --observer-epochs 1 \
+  --epochs 1 \
+  --hidden-dim 16 \
+  --observer-hidden-dim 24 \
+  --layers 1 \
+  --attention-heads 4 \
+  --dropout 0.1 \
+  --learning-rate 0.001 \
+  --weight-decay 0.0001 \
+  --alpha 0.1 \
+  --ood-alpha 0.01 \
+  --device cpu
+```
+
+기존 `ml_results/FlowTwin-Benchmark-D1-core-dev-v0.2/`는 같은 3-variant×1-seed 경로를 완주했지만, `ml_pipeline_common.py` materialization source provenance를 누락한 구 cache v0.2를 사용했다. 따라서 역사적 development/pipeline 기록으로만 남기고 현재 성능 근거에서 제외한다.
+
+OOD 실행용 `ml_datasets/D2-ood-dev` 데이터는 생성·split·감사와 `D2-ood-dev-cache-v0.3` materialization까지 완료됐다. ID 12 + OOD 4 = 16 profiles, 48 counterfactual groups, 960 episodes, signal/label 각 1,728,000 rows이며, split은 train 7/420, validation 2/120, test-ID 3/180, test-OOD 4/240 profiles/episodes이다. OOD 4 profiles는 `OOD_LOW_FLOW` 2개와 `OOD_HIGH_FLOW_WARM_FEED` 2개이고 감사 30/30을 통과했다. Domain verifier는 profile config hash, 실제 33개 physical parameter, 계약 range 일치와 domain 사이 strict support gap을 확인한다.
+
+`ml_results/FlowTwin-Benchmark-D2-core-budget-v0.2/`에는 frozen 비시드 budget을 적용한 FlowTwin/TCN/DSPR 3-model×1-seed 실행이 checksum과 함께 저장돼 있다. 전체 macro-F1은 각각 `0.44545/0.56266/0.58609`, OOD AUROC는 `0.81138/0.41887/0.58005`, event-F1은 `0.01872/0.03626/0.25665`, false-alarm onset은 `347.85/169.85/3.09 h⁻¹`였다. FlowTwin은 OOD 순위와 탐지 전 unsafe volume에서 가능성을 보였지만 class/event 성능은 strongest baseline보다 낮고 오경보가 가장 많았다. 세 모델 모두 conformal 평균 set이 10.34–12.60 classes이고 singleton `DIAGNOSE=0`이었다. 선택 variant·단일 seed 실행이라 tier는 `development`이며, 아직 D2 16-variant×3-seed full matrix를 실행하지 않았으므로 이를 우월성 또는 `protocol_complete_synthetic` 성능 완료로 표현하지 않는다.
+
+### FlowTwin v0.3 opened-D2 post-hoc 개발 결과
+
+v0.3은 D2 test를 이미 열어 본 뒤 선택한 W96·seed `20260727` 후보이므로 전부 `development_only`다. 원 산출물은 `ml_results/FlowTwin-v03-D2-candidate-matched-dev`, `FlowTwin-v03-D2-flowtwin-operational-dev`, `FlowTwin-v03-D2-tcn-raw-diagnostic-dev`, `FlowTwin-v03-D2-dspr-operational-dev`, `FlowTwin-v03-D2-tcn-alarm-feasibility-dev`에 나뉘어 있다. 단일 4-model atomic run은 TCN의 validation operational gate `0/75`로 fail-closed됐으며, TCN test operational 수치는 없다.
+
+아래 `전체` macro-F1은 ID/OOD row를 합친 descriptive pooled 값이며 profile-level 추론 결과가 아니다.
+
+| 모델 | parameter | 전체 / ID / OOD macro-F1 | validation-fitted row event-F1 | row-threshold FA h⁻¹ | row-threshold unsafe L | OOD AUROC / FPR95 |
+|---|---:|---:|---:|---:|---:|---:|
+| FlowTwin-Hybrid v0.3 | 58,315 | 0.56218 / **0.68129** / 0.53188 | 0.03452 | 186.51 | 414.37 | 0.55268 / 0.91749 |
+| FlowTwin-Guard | 42,508 | 0.42491 / 0.55566 / 0.37698 | 0.02686 | 245.83 | 0.00 | **0.76773** / 0.93618 |
+| TCN | 15,379 | 0.58313 / 0.64073 / 0.54890 | 0.02222 | 285.31 | 56.31 | 0.45451 / 0.98143 |
+| DSPR adaptation | 54,166 | **0.59399** / 0.61125 / **0.58642** | **0.31215** | **5.24** | 4,081.49 | 0.57475 / 0.93870 |
+
+Validation gate를 통과한 Hybrid/FlowTwin/DSPR의 combined-test operational event-F1은 `0.87690/0.90040/0.88438`, FA는 `5.744/7.770/3.276 h⁻¹`, unsafe volume은 `436.18/10.51/3,674.27 L`였다. Hybrid은 ID macro-F1만 1위이고 전체·OOD·operational 전반의 우월성은 없다. Hybrid/FlowTwin의 validation 최대 profile FA `3.40/4.29 h⁻¹`는 test profile에서 `9.42/9.09 h⁻¹`로 상승해 일반화에 실패했다. DSPR은 FA를 낮췄지만 recall `0.81322`와 unsafe `3,674.27 L`의 trade-off가 크다. `F05` recall은 전 모델 `0`, Hybrid `F09` recall도 `0`이고, conformal `DIAGNOSE`는 네 모델 모두 `0`이다. 병렬 CPU 경합을 포함한 timing은 비교하지 않고 parameter count만 보고한다.
+
+산출물·재현 명령·validation feasibility·조건부 3-model operational 표는 [FLOWTWIN_GUARD.md](FLOWTWIN_GUARD.md)에, 실험 해석은 [ML_EXPERIMENTS.md](ML_EXPERIMENTS.md)에 고정했다. GitHub에서 바로 확인할 수 있는 소형 결과표는 [docs/results/flowtwin-v03](docs/results/flowtwin-v03/README.md)에 공개하며, 표준 합성 보고서의 로컬 출력 경로는 `ml_results/FlowTwin-v03-D2-development-report`다. 이 결과는 novelty, external-OOD, 현장 정확도, 살균 유효성, HACCP 적합성 또는 제품 안전을 입증하지 않는다.
+
+정규 D1 생성·감사 명령, 동적 graph 도식, 산출물 계약과 정확한 평가 경계는 [FLOWTWIN_GUARD.md](FLOWTWIN_GUARD.md)에 있다. `protocol_complete_synthetic`은 등록 16개 variant·3 seeds·exact CPU budget과 검증된 ID/OOD partition을 모두 충족한 합성 실험 label일 뿐이며, runner는 절대 `external_confirmatory` 또는 현장 검증 label을 부여하지 않는다.
 
 21개 simulator 시나리오를 기본 설정으로 실행한다.
 
@@ -301,7 +401,9 @@ Campaign CLI는 209개 필드의 `campaign.csv`, event/transition log, canonical
 - DynamicHX shadow의 step 에너지 보존과 fouling 영향
 - 관측 알람/oracle 분리, CLI·manifest·checksum·보고서 검증
 - D1 canonical taxonomy, profile split과 저장 smoke 누수·계약 감사 30/30
+- D2 ID/OOD profile hash, 33개 physical parameter/range, strict support-gap, split 격리 감사 30/30
 - D3 scalar-fouling EOL/right-censor 재현, 실제 범위 밖 OOD profile split과 저장 smoke 감사 26/26
+- FlowTwin-Guard 22-node/23-edge allowlist graph, fractional delay gradient, route gating, causal forward, validation-only conformal과 end-to-end checkpoint artifact
 
 시험 통과는 **구현 계약의 검증**이지 실제 공정의 정확도나 안전성 검증이 아니다.
 

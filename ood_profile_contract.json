@@ -1,0 +1,36 @@
+{
+  "version": "1.0.0",
+  "id_domain": "ID",
+  "description": "Synthetic, simulator-native covariate-support shifts for held-out HTST profile evaluation. These domains are not measurements of a real plant and must not be presented as evidence of field generalization.",
+  "ood_domains": [
+    "OOD_LOW_FLOW",
+    "OOD_HIGH_FLOW_WARM_FEED"
+  ],
+  "generation_policy": {
+    "profile_count_semantics": "--profiles is the number of ID profiles; --ood-profiles adds held-out profiles",
+    "domain_assignment": "deterministic round-robin in ood_domains order",
+    "sampling": "independent uniform draws over each domain's complete expanded parameter ranges",
+    "seed_namespace": "stable_seed(master_seed, 'ood-profile', domain, ood_profile_index)",
+    "support_separation": "each OOD domain and every other domain must have at least one closed parameter interval separated by a strict gap",
+    "split_policy": "all non-ID profiles are evaluation-only test_ood_profile",
+    "claim_boundary": "synthetic support-shift stress test only; not real-world or plant OOD validation"
+  },
+  "profile_parameter_range_overrides": {
+    "OOD_LOW_FLOW": {
+      "nominal_flow_l_h": [
+        12000.0,
+        15000.0
+      ]
+    },
+    "OOD_HIGH_FLOW_WARM_FEED": {
+      "nominal_flow_l_h": [
+        25000.0,
+        28000.0
+      ],
+      "raw_milk_temp_c": [
+        11.0,
+        14.0
+      ]
+    }
+  }
+}

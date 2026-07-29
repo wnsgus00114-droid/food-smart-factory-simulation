@@ -1,0 +1,4 @@
+# Optional dependencies for FlowTwin-Guard.  The simulator itself remains
+# Python-standard-library only.
+numpy>=2.0,<3
+torch>=2.5,<3

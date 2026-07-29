@@ -37,6 +37,7 @@ GENERATE = MODULE_DIR / "generate_ml_dataset.py"
 SPLIT = MODULE_DIR / "split_ml_dataset.py"
 AUDIT = MODULE_DIR / "audit_ml_dataset.py"
 BASELINES = MODULE_DIR / "run_ml_baselines.py"
+OOD_CONTRACT = MODULE_DIR / "ood_profile_contract.json"
 
 
 class MLPipelineTests(unittest.TestCase):
@@ -237,7 +238,14 @@ class MLPipelineTests(unittest.TestCase):
         schema = self._json(self.dataset / "dataset_schema.json")
         self.assertEqual(manifest["model_version"], "2.2.0")
         self.assertEqual(manifest["contract_version"], "2.2.0")
-        self.assertEqual(manifest["generator_version"], "2.2.0")
+        self.assertEqual(manifest["generator_version"], "2.2.1")
+        self.assertEqual(manifest["parameters"]["ood_profiles"], 0)
+        self.assertEqual(manifest["domain_contract"]["id_domain"], "ID")
+        self.assertEqual(manifest["domain_contract"]["ood_domains"], [])
+        self.assertTrue(manifest["domain_contract"]["synthetic_only"])
+        self.assertEqual(
+            set(manifest["domain_contract"]["profile_parameter_ranges"]), {"ID"}
+        )
         self.assertIn("process_components.py", manifest["provenance"])
         self.assertEqual(schema["schema_version"], "2.2.0")
         for table in (
@@ -292,6 +300,12 @@ class MLPipelineTests(unittest.TestCase):
             self.assertNotIn(observable, label_header)
         self.assertIn("physical_effect_time_s", label_header)
         self.assertIn("future_safety_event_30s", label_header)
+        self.assertTrue(
+            all(
+                row["domain"] == "ID"
+                for row in self._rows(self.dataset / "profiles.csv")
+            )
+        )
         model_row = HTSTSimulator(
             HTSTConfig(duration_s=1.0, dt_s=1.0)
         ).run("normal")[0]
@@ -440,6 +454,186 @@ class MLPipelineTests(unittest.TestCase):
             for row in rows:
                 owners[row[field]].add(row["split"])
             self.assertTrue(all(len(splits) == 1 for splits in owners.values()), field)
+
+    def test_synthetic_ood_profiles_are_disjoint_deterministic_and_held_out(self) -> None:
+        dataset = self.root / "ood-dataset"
+        dataset_copy = self.root / "ood-dataset-copy"
+        arguments = [
+            "--dataset-version",
+            "D1-OOD-test",
+            "--profiles",
+            "3",
+            "--ood-profiles",
+            "4",
+            "--ood-contract",
+            str(OOD_CONTRACT),
+            "--replicates",
+            "1",
+            "--duration-s",
+            "30",
+            "--dt-s",
+            "1",
+            "--seed",
+            "24680",
+            "--scenarios",
+            "normal",
+            "steam_loss",
+        ]
+        self._run(
+            [sys.executable, str(GENERATE), "--output", str(dataset), *arguments]
+        )
+        self._run(
+            [
+                sys.executable,
+                str(GENERATE),
+                "--output",
+                str(dataset_copy),
+                *arguments,
+            ]
+        )
+        for filename in (
+            "profiles.csv",
+            "episodes.csv",
+            "signals.csv",
+            "oracle_labels.csv",
+            "dataset_schema.json",
+            "dataset_manifest.json",
+            "checksums.sha256",
+        ):
+            with self.subTest(deterministic_artifact=filename):
+                self.assertEqual(
+                    (dataset / filename).read_bytes(),
+                    (dataset_copy / filename).read_bytes(),
+                )
+
+        manifest = self._json(dataset / "dataset_manifest.json")
+        domain_contract = manifest["domain_contract"]
+        self.assertEqual(domain_contract["version"], "1.0.0")
+        self.assertEqual(domain_contract["id_domain"], "ID")
+        self.assertEqual(
+            domain_contract["ood_domains"],
+            ["OOD_LOW_FLOW", "OOD_HIGH_FLOW_WARM_FEED"],
+        )
+        self.assertTrue(domain_contract["synthetic_only"])
+        self.assertIn(
+            "not real-world",
+            domain_contract["generation_policy"]["claim_boundary"],
+        )
+        ranges = domain_contract["profile_parameter_ranges"]
+        expected_fields = set(load_contract()["profile_parameter_ranges"])
+        self.assertEqual(set(ranges), {"ID", *domain_contract["ood_domains"]})
+        self.assertTrue(
+            all(
+                set(domain_ranges) == expected_fields
+                for domain_ranges in ranges.values()
+            )
+        )
+
+        id_flow = ranges["ID"]["nominal_flow_l_h"]
+        self.assertLess(ranges["OOD_LOW_FLOW"]["nominal_flow_l_h"][1], id_flow[0])
+        self.assertGreater(
+            ranges["OOD_HIGH_FLOW_WARM_FEED"]["nominal_flow_l_h"][0], id_flow[1]
+        )
+        profiles = self._rows(dataset / "profiles.csv")
+        self.assertEqual(len(profiles), 7)
+        self.assertEqual(
+            [row["domain"] for row in profiles],
+            [
+                "ID",
+                "ID",
+                "ID",
+                "OOD_LOW_FLOW",
+                "OOD_HIGH_FLOW_WARM_FEED",
+                "OOD_LOW_FLOW",
+                "OOD_HIGH_FLOW_WARM_FEED",
+            ],
+        )
+        profiles_by_id = {row["plant_profile_id"]: row for row in profiles}
+        for row in profiles:
+            domain = row["domain"]
+            profile_values = {
+                name: float(row[name]) for name in sorted(expected_fields)
+            }
+            HTSTConfig(**profile_values, duration_s=30.0, dt_s=1.0)
+            for name, bounds in ranges[domain].items():
+                self.assertGreaterEqual(profile_values[name], float(bounds[0]))
+                self.assertLessEqual(profile_values[name], float(bounds[1]))
+
+        episodes = self._rows(dataset / "episodes.csv")
+        self.assertEqual(len(episodes), 14)
+        self.assertTrue(
+            all(
+                row["domain"]
+                == profiles_by_id[row["plant_profile_id"]]["domain"]
+                for row in episodes
+            )
+        )
+        splits = self.root / "ood-splits"
+        self._run(
+            [
+                sys.executable,
+                str(SPLIT),
+                "--dataset",
+                str(dataset),
+                "--output",
+                str(splits),
+                "--seed",
+                "13579",
+            ]
+        )
+        split_rows = self._rows(splits / "episode_splits.csv")
+        self.assertTrue(
+            all(
+                (row["domain"] != "ID" and row["split"] == "test_ood_profile")
+                or (row["domain"] == "ID" and row["split"] != "test_ood_profile")
+                for row in split_rows
+            )
+        )
+        self.assertTrue(
+            all(
+                row["domain"] != "ID"
+                for row in split_rows
+                if row["split"] == "test_ood_profile"
+            )
+        )
+        self.assertEqual(
+            {row["split"] for row in split_rows if row["domain"] == "ID"},
+            {"train_id", "validation_id", "test_id"},
+        )
+
+    def test_ood_contract_rejects_overlapping_support_before_writing(self) -> None:
+        contract = json.loads(OOD_CONTRACT.read_text(encoding="utf-8"))
+        contract["profile_parameter_range_overrides"]["OOD_LOW_FLOW"][
+            "nominal_flow_l_h"
+        ] = [17000.0, 23000.0]
+        bad_contract = self.root / "overlapping-ood-contract.json"
+        bad_contract.write_text(
+            json.dumps(contract, ensure_ascii=False), encoding="utf-8"
+        )
+        output = self.root / "overlapping-ood-dataset"
+        process = self._run_allow_failure(
+            [
+                sys.executable,
+                str(GENERATE),
+                "--output",
+                str(output),
+                "--profiles",
+                "1",
+                "--ood-profiles",
+                "1",
+                "--ood-contract",
+                str(bad_contract),
+                "--replicates",
+                "1",
+                "--duration-s",
+                "30",
+                "--scenarios",
+                "normal",
+            ]
+        )
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn("not strictly disjoint", process.stderr)
+        self.assertFalse(output.exists())
 
     def test_auditor_passes_clean_dataset_and_rejects_privileged_column(self) -> None:
         report_path = self.root / "audit.json"
