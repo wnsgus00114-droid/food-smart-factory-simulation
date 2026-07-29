@@ -17,13 +17,13 @@
 
 ### 2D 공정·제어 구조
 
-![연속식 우유 HTST 디지털 트윈 2D 구조](docs/images/htst-digital-twin-2d.png)
+![연속식 우유 HTST 디지털 트윈 2D 구조](docs/images/htst-digital-twin-2d-v2.png)
 
 파란색은 제품 흐름, 주황색은 열원, 빨간색은 FDV 회송, 초록색은 CIP, 보라색 점선은 센서·PLC·HACCP·수명계층의 데이터 흐름이다.
 
 ### 3D 설비 배치 개념도
 
-![연속식 우유 HTST 디지털 트윈 3D 구조](docs/images/htst-digital-twin-3d.png)
+![연속식 우유 HTST 디지털 트윈 3D 구조](docs/images/htst-digital-twin-3d-v2.png)
 
 두 이미지는 코드의 참조 위상을 설명하기 위한 개념도이며 실제 공장의 배관 치수, 설치 위치 또는 as-built P&ID를 나타내지 않는다. 기계판독 가능한 상세 연결은 [reference_pid.json](reference_pid.json), 실행 시 생성되는 전체 Mermaid P&ID는 `digital_twin_results/reference_plant.md`를 따른다.
 
